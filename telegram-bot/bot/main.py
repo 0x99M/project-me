@@ -10,10 +10,12 @@ from telegram.ext import Application, ContextTypes, MessageHandler, filters
 from bot.auth import is_authorized
 from bot.commands import find_command, format_group, format_hint
 from bot.config import Config, load_config
+from bot.cookies import load_cookie_file
 from bot.tools.youtube_audio import (
     AWAITING_KEY,
     AWAITING_YOUTUBE_URL,
     handle_youtube_url,
+    set_cookie_file,
 )
 
 logging.basicConfig(
@@ -99,6 +101,12 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 def main() -> None:
     config = load_config()
+
+    cookie_file = load_cookie_file()
+    set_cookie_file(cookie_file)
+    if cookie_file is None:
+        # Not fatal: from a residential IP YouTube serves anonymous requests fine.
+        log.info("no youtube cookies configured (fine on a residential IP)")
 
     application = Application.builder().token(config.bot_token).build()
     application.bot_data["config"] = config

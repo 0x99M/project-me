@@ -80,6 +80,21 @@ class InvalidYoutubeUrl(ValueError):
     """The text the user sent is not a YouTube video link."""
 
 
+#: Set once at startup by main(); None when no cookies are configured.
+COOKIE_FILE: str | None = None
+
+
+def set_cookie_file(path: str | None) -> None:
+    global COOKIE_FILE
+    COOKIE_FILE = path
+
+
+def _apply_cookies(options: dict[str, Any]) -> None:
+    """Both the metadata probe and the download need the jar; YouTube gates both."""
+    if COOKIE_FILE:
+        options["cookiefile"] = COOKIE_FILE
+
+
 def parse_youtube_url(raw: str) -> str:
     """Validate and canonicalise a YouTube link, or raise InvalidYoutubeUrl."""
     text = raw.strip()
@@ -118,6 +133,30 @@ def parse_youtube_url(raw: str) -> str:
     return f"https://www.youtube.com/watch?v={video_id}"
 
 
+def _explain_failure(error: Exception) -> str:
+    """Say what actually went wrong.
+
+    A blanket "private, age-gated, or removed" once sent us hunting the wrong
+    problem when YouTube was in fact refusing the host's IP.
+    """
+    text = str(error).lower()
+
+    if "sign in to confirm" in text or "not a bot" in text:
+        return (
+            "❌ YouTube is refusing this host as a bot.\n\n"
+            "It blocks datacenter IPs and wants a signed-in session. Cookies need to "
+            "be configured (YOUTUBE_COOKIES_B64), or the bot has to run from a "
+            "residential IP."
+        )
+    if "private video" in text:
+        return "❌ That video is private."
+    if "age" in text and "confirm" in text:
+        return "❌ That video is age-restricted and needs a signed-in session."
+    if "unavailable" in text or "removed" in text or "does not exist" in text:
+        return "❌ That video is unavailable or has been removed."
+    return "❌ Could not read that video."
+
+
 def _render_bar(percent: float) -> str:
     filled = int(round(percent / 100 * BAR_WIDTH))
     filled = max(0, min(BAR_WIDTH, filled))
@@ -141,7 +180,13 @@ def _render_progress(state: dict[str, Any]) -> str:
 
 
 def _fetch_metadata(url: str) -> dict[str, Any]:
-    options = {"quiet": True, "no_warnings": True, "noplaylist": True, "skip_download": True}
+    options: dict[str, Any] = {
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "skip_download": True,
+    }
+    _apply_cookies(options)
     with yt_dlp.YoutubeDL(options) as ydl:
         return ydl.extract_info(url, download=False)  # type: ignore[return-value]
 
@@ -183,6 +228,8 @@ def _download_audio(
 
     if bitrate_kbps <= MONO_AT_OR_BELOW_KBPS:
         options["postprocessor_args"] = {"extractaudio": ["-ac", "1"]}
+
+    _apply_cookies(options)
 
     with yt_dlp.YoutubeDL(options) as ydl:
         ydl.extract_info(url, download=True)
@@ -235,7 +282,7 @@ async def _run_conversion(update: Update, url: str) -> None:
         info = await loop.run_in_executor(None, _fetch_metadata, url)
     except Exception as error:  # noqa: BLE001 - yt-dlp raises many types
         log.warning("metadata failed for %s: %s", url, error)
-        await status.edit_text("❌ Could not read that video. It may be private, age-gated, or removed.")
+        await status.edit_text(_explain_failure(error))
         return
 
     title = info.get("title") or "video"
