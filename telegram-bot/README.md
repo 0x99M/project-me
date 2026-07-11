@@ -1,6 +1,6 @@
 # telegram-bot
 
-A private Telegram bot. `/status` reports whether https://www.0x99m.com is up.
+A private Telegram bot.
 
 ## Security model
 
@@ -43,7 +43,22 @@ by the host.
 
 ## Commands
 
-| Command   | Behavior                                    |
-| --------- | ------------------------------------------- |
-| `/status` | GET `STATUS_URL`, report HTTP code + timing |
-| `/help`   | List commands                               |
+| Command | Behavior                            |
+| ------- | ----------------------------------- |
+| `/hint` | List every command the bot knows    |
+
+## Adding a command
+
+`src/commands.ts` holds the whole command list. Append an entry:
+
+```ts
+{
+  name: "ping",
+  description: "What it does, as one line",
+  run: async () => "pong",
+}
+```
+
+That is the only edit. The dispatcher routes to it by name, and `/hint` lists it
+automatically — `/hint` is generated from the same array, so it cannot drift out
+of date.

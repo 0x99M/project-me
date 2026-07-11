@@ -32,13 +32,11 @@ function parseAllowedUserIds(raw: string): ReadonlySet<number> {
 export type Config = {
   botToken: string;
   allowedUserIds: ReadonlySet<number>;
-  statusUrl: string;
 };
 
 export function loadConfig(): Config {
   return {
     botToken: required("TELEGRAM_BOT_TOKEN"),
     allowedUserIds: parseAllowedUserIds(required("TELEGRAM_ALLOWED_USER_IDS")),
-    statusUrl: process.env.STATUS_URL?.trim() || "https://www.0x99m.com",
   };
 }

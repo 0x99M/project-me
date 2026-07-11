@@ -1,12 +1,17 @@
 import { isAuthorized } from "./auth.js";
+import { findCommand, formatHint } from "./commands.js";
 import { loadConfig, type Config } from "./config.js";
-import { checkStatus, formatStatus } from "./status.js";
 import { TelegramClient, type TelegramMessage } from "./telegram.js";
 
 const LONG_POLL_SECONDS = 30;
 const ERROR_BACKOFF_MS = 5_000;
 
-const HELP = ["/status — check whether the site is up", "/help — show this message"].join("\n");
+/** "/hint@some_bot extra args" -> "hint" */
+function parseCommandName(text: string | undefined): string | undefined {
+  const word = text?.trim().split(/\s+/)[0];
+  if (!word?.startsWith("/")) return undefined;
+  return word.slice(1).split("@")[0]?.toLowerCase();
+}
 
 async function handleMessage(
   message: TelegramMessage,
@@ -15,7 +20,7 @@ async function handleMessage(
 ): Promise<void> {
   if (!isAuthorized(message, config)) {
     // Stay silent rather than replying "denied": a reply confirms the bot is live
-    // and worth probing. The log line is how you discover your own user ID.
+    // and worth probing. The log line is how you discover a user's ID.
     console.warn(
       `denied: user=${message.from?.id ?? "unknown"} username=${
         message.from?.username ?? "-"
@@ -24,25 +29,22 @@ async function handleMessage(
     return;
   }
 
-  const command = message.text?.trim().split(/\s+/)[0]?.toLowerCase();
-  // Telegram appends @botname to commands sent in some contexts.
-  const bare = command?.split("@")[0];
+  const name = parseCommandName(message.text);
 
-  switch (bare) {
-    case "/status": {
-      const report = await checkStatus(config.statusUrl);
-      await telegram.sendMessage(message.chat.id, formatStatus(report));
-      return;
-    }
-    case "/start":
-    case "/help": {
-      await telegram.sendMessage(message.chat.id, HELP);
-      return;
-    }
-    default: {
-      await telegram.sendMessage(message.chat.id, `Unknown command.\n\n${HELP}`);
-    }
+  // /start is what Telegram sends when a chat is first opened, so answer it with
+  // the command list rather than an "unknown command" scolding.
+  if (name === undefined || name === "start") {
+    await telegram.sendMessage(message.chat.id, formatHint());
+    return;
   }
+
+  const command = findCommand(name);
+  if (!command) {
+    await telegram.sendMessage(message.chat.id, `Unknown command.\n\n${formatHint()}`);
+    return;
+  }
+
+  await telegram.sendMessage(message.chat.id, await command.run());
 }
 
 async function main(): Promise<void> {
@@ -51,7 +53,7 @@ async function main(): Promise<void> {
 
   const me = await telegram.getMe();
   console.log(
-    `started as @${me.username ?? me.id}; ${config.allowedUserIds.size} allowed user(s); watching ${config.statusUrl}`
+    `started as @${me.username ?? me.id}; ${config.allowedUserIds.size} allowed user(s)`
   );
 
   let running = true;
