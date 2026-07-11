@@ -1,0 +1,278 @@
+"""/youtube_audio — prompt for a YouTube link, return its audio."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import tempfile
+from pathlib import Path
+from typing import Any
+from urllib.parse import parse_qs, urlparse
+
+import yt_dlp
+from telegram import Update
+from telegram.error import BadRequest
+from telegram.ext import ContextTypes
+
+log = logging.getLogger(__name__)
+
+AWAITING_KEY = "awaiting"
+AWAITING_YOUTUBE_URL = "youtube_audio_url"
+JOB_RUNNING_KEY = "youtube_audio_running"
+
+AUDIO_BITRATE_KBPS = 192
+
+# Telegram refuses bot uploads over 50 MB, so anything above this cannot be
+# delivered no matter how well the conversion goes. Reject early rather than
+# spend minutes transcoding something undeliverable.
+MAX_UPLOAD_BYTES = 49 * 1024 * 1024
+MAX_DURATION_SECONDS = 30 * 60
+
+# yt-dlp supports well over a thousand sites, several of which would happily
+# fetch from internal addresses. Restricting the host keeps the bot pointed at
+# YouTube and nothing else.
+ALLOWED_HOSTS = frozenset(
+    {
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be",
+        "www.youtu.be",
+    }
+)
+
+PROGRESS_EDIT_INTERVAL_SECONDS = 3.0
+BAR_WIDTH = 20
+
+# Pinned rather than left to PATH: /snap/bin shadows /usr/bin, and the snap build of
+# ffmpeg ships no runnable ffprobe, which yt-dlp needs to read the source codec.
+FFMPEG_LOCATION = "/usr/bin"
+
+
+class InvalidYoutubeUrl(ValueError):
+    """The text the user sent is not a YouTube video link."""
+
+
+def parse_youtube_url(raw: str) -> str:
+    """Validate and canonicalise a YouTube link, or raise InvalidYoutubeUrl."""
+    text = raw.strip()
+    if not text:
+        raise InvalidYoutubeUrl("That is empty.")
+
+    # People paste links without a scheme; assume https rather than reject.
+    if "://" not in text:
+        text = f"https://{text}"
+
+    try:
+        parsed = urlparse(text)
+    except ValueError:
+        raise InvalidYoutubeUrl("That is not a URL.") from None
+
+    if parsed.scheme not in ("http", "https"):
+        raise InvalidYoutubeUrl("Only http(s) links are accepted.")
+
+    host = (parsed.hostname or "").lower()
+    if host not in ALLOWED_HOSTS:
+        raise InvalidYoutubeUrl("That is not a YouTube link. Only YouTube URLs are accepted.")
+
+    if host.endswith("youtu.be"):
+        video_id = parsed.path.lstrip("/").split("/")[0]
+    else:
+        video_id = (parse_qs(parsed.query).get("v") or [""])[0]
+        if not video_id and parsed.path.startswith(("/shorts/", "/live/", "/embed/")):
+            parts = [part for part in parsed.path.split("/") if part]
+            video_id = parts[1] if len(parts) > 1 else ""
+
+    # Video IDs are 11 chars of [A-Za-z0-9_-]; anything else is not a video link
+    # (a channel or a search page, most likely).
+    if not video_id or not all(c.isalnum() or c in "_-" for c in video_id):
+        raise InvalidYoutubeUrl("I could not find a video ID in that link.")
+
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
+def _render_bar(percent: float) -> str:
+    filled = int(round(percent / 100 * BAR_WIDTH))
+    filled = max(0, min(BAR_WIDTH, filled))
+    return "█" * filled + "░" * (BAR_WIDTH - filled)
+
+
+def _render_progress(state: dict[str, Any]) -> str:
+    title = state.get("title") or "video"
+    phase = state["phase"]
+
+    if phase == "downloading":
+        percent = state.get("percent", 0.0)
+        return f"⬇️ Downloading — {title}\n[{_render_bar(percent)}] {percent:.0f}%"
+    if phase == "converting":
+        # ffmpeg reports no percentage here, so a full bar with a clear label beats
+        # a fake number that would sit still.
+        return f"🎧 Converting to MP3 — {title}\n[{_render_bar(100)}] almost there"
+    if phase == "uploading":
+        return f"📤 Uploading — {title}"
+    return f"⏳ Working — {title}"
+
+
+def _fetch_metadata(url: str) -> dict[str, Any]:
+    options = {"quiet": True, "no_warnings": True, "noplaylist": True, "skip_download": True}
+    with yt_dlp.YoutubeDL(options) as ydl:
+        return ydl.extract_info(url, download=False)  # type: ignore[return-value]
+
+
+def _download_audio(url: str, target_dir: Path, state: dict[str, Any]) -> Path:
+    """Blocking: run yt-dlp. Called in a worker thread."""
+
+    def progress_hook(event: dict[str, Any]) -> None:
+        if event.get("status") == "downloading":
+            total = event.get("total_bytes") or event.get("total_bytes_estimate")
+            downloaded = event.get("downloaded_bytes") or 0
+            if total:
+                state["percent"] = min(100.0, downloaded / total * 100)
+            state["phase"] = "downloading"
+        elif event.get("status") == "finished":
+            state["phase"] = "converting"
+
+    options = {
+        "format": "bestaudio/best",
+        "outtmpl": str(target_dir / "%(id)s.%(ext)s"),
+        "noplaylist": True,
+        "quiet": True,
+        "no_warnings": True,
+        # Progress reaches the user through progress_hooks; yt-dlp's own console
+        # bar would otherwise spam the bot's logs.
+        "noprogress": True,
+        "ffmpeg_location": FFMPEG_LOCATION,
+        "progress_hooks": [progress_hook],
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": str(AUDIO_BITRATE_KBPS),
+            }
+        ],
+    }
+
+    with yt_dlp.YoutubeDL(options) as ydl:
+        ydl.extract_info(url, download=True)
+
+    produced = sorted(target_dir.glob("*.mp3"))
+    if not produced:
+        raise RuntimeError("Conversion produced no audio file.")
+    return produced[0]
+
+
+async def start_youtube_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Entry point: ask for the link. The reply is picked up by the dispatcher."""
+    assert update.message is not None and context.user_data is not None
+
+    if context.user_data.get(JOB_RUNNING_KEY):
+        await update.message.reply_text("A conversion is already running. Wait for it to finish.")
+        return
+
+    context.user_data[AWAITING_KEY] = AWAITING_YOUTUBE_URL
+    await update.message.reply_text("Send me the YouTube link.\n\n/cancel to abort.")
+
+
+async def handle_youtube_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """The follow-up message, expected to be a YouTube link."""
+    assert update.message is not None and update.message.text is not None
+    assert context.user_data is not None
+
+    context.user_data.pop(AWAITING_KEY, None)
+
+    try:
+        url = parse_youtube_url(update.message.text)
+    except InvalidYoutubeUrl as error:
+        await update.message.reply_text(f"❌ {error}\n\nRun /youtube_audio to try again.")
+        return
+
+    context.user_data[JOB_RUNNING_KEY] = True
+    try:
+        await _run_conversion(update, url)
+    finally:
+        context.user_data[JOB_RUNNING_KEY] = False
+
+
+async def _run_conversion(update: Update, url: str) -> None:
+    assert update.message is not None
+    loop = asyncio.get_running_loop()
+
+    status = await update.message.reply_text("⏳ Looking up the video…")
+
+    try:
+        info = await loop.run_in_executor(None, _fetch_metadata, url)
+    except Exception as error:  # noqa: BLE001 - yt-dlp raises many types
+        log.warning("metadata failed for %s: %s", url, error)
+        await status.edit_text("❌ Could not read that video. It may be private, age-gated, or removed.")
+        return
+
+    title = info.get("title") or "video"
+    duration = int(info.get("duration") or 0)
+
+    if duration and duration > MAX_DURATION_SECONDS:
+        await status.edit_text(
+            f"❌ That video is {duration // 60} min long. "
+            f"Telegram caps bot uploads at 50 MB, so I only take up to "
+            f"{MAX_DURATION_SECONDS // 60} min."
+        )
+        return
+
+    state: dict[str, Any] = {"phase": "downloading", "percent": 0.0, "title": title, "done": False}
+
+    async def push_progress() -> None:
+        last = ""
+        while not state["done"]:
+            text = _render_progress(state)
+            if text != last:
+                try:
+                    await status.edit_text(text)
+                    last = text
+                except BadRequest:
+                    # "message is not modified" and friends are not worth failing over.
+                    pass
+            await asyncio.sleep(PROGRESS_EDIT_INTERVAL_SECONDS)
+
+    updater = asyncio.create_task(push_progress())
+
+    with tempfile.TemporaryDirectory(prefix="ytaudio-") as tmp:
+        target_dir = Path(tmp)
+        try:
+            audio_path = await loop.run_in_executor(None, _download_audio, url, target_dir, state)
+        except Exception as error:  # noqa: BLE001 - yt-dlp raises many types
+            log.warning("download failed for %s: %s", url, error)
+            state["done"] = True
+            await updater
+            await status.edit_text("❌ Download or conversion failed.")
+            return
+
+        size = audio_path.stat().st_size
+        if size > MAX_UPLOAD_BYTES:
+            state["done"] = True
+            await updater
+            await status.edit_text(
+                f"❌ The audio came to {size / 1024 / 1024:.0f} MB, over Telegram's 50 MB "
+                f"limit for bots. I cannot send it."
+            )
+            return
+
+        state["phase"] = "uploading"
+        state["done"] = True
+        await updater
+        try:
+            await status.edit_text(_render_progress(state))
+        except BadRequest:
+            pass
+
+        with audio_path.open("rb") as audio:
+            await update.message.reply_audio(
+                audio=audio,
+                title=title[:64],
+                duration=duration or None,
+                filename=f"{title[:64]}.mp3",
+                caption=f"🎧 {title}",
+                write_timeout=300,
+                read_timeout=120,
+            )
+
+    await status.delete()
