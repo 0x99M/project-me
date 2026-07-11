@@ -22,6 +22,18 @@ const nextConfig: NextConfig = {
         destination: "https://www.0x99m.com/portfolio",
         permanent: true,
       },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "0x99m.com" }],
+        destination: "https://www.0x99m.com/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "header", key: "x-forwarded-host", value: "0x99m.com" }],
+        destination: "https://www.0x99m.com/:path*",
+        permanent: true,
+      },
     ];
   },
 };
