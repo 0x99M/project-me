@@ -20,13 +20,39 @@ AWAITING_KEY = "awaiting"
 AWAITING_YOUTUBE_URL = "youtube_audio_url"
 JOB_RUNNING_KEY = "youtube_audio_running"
 
-AUDIO_BITRATE_KBPS = 192
-
 # Telegram refuses bot uploads over 50 MB, so anything above this cannot be
-# delivered no matter how well the conversion goes. Reject early rather than
-# spend minutes transcoding something undeliverable.
+# delivered no matter how well the conversion goes.
 MAX_UPLOAD_BYTES = 49 * 1024 * 1024
-MAX_DURATION_SECONDS = 30 * 60
+
+# Aim below the hard limit: the estimate below is bitrate x duration, which ignores
+# the container and ID3 tags, and a file that lands at 49.5 MB is a wasted transcode.
+SIZE_BUDGET_BYTES = 45 * 1024 * 1024
+
+# Rather than refuse long videos, drop quality until they fit. Speech survives 64
+# kbps mono perfectly well, so a 3-hour talk is still deliverable.
+BITRATE_LADDER_KBPS = (192, 160, 128, 96, 64, 48, 32)
+
+# Below this, mono buys more quality per bit than stereo does.
+MONO_AT_OR_BELOW_KBPS = 64
+
+# Used when the video reports no duration; the post-conversion size check is the
+# backstop if the guess turns out too generous.
+FALLBACK_BITRATE_KBPS = 128
+
+
+def estimate_size_bytes(bitrate_kbps: int, duration_seconds: int) -> int:
+    # 1 kbps = 1000 bits/s = 125 bytes/s.
+    return bitrate_kbps * 125 * duration_seconds
+
+
+def choose_bitrate(duration_seconds: int) -> int | None:
+    """Highest bitrate whose output should fit the budget, or None if none does."""
+    if duration_seconds <= 0:
+        return FALLBACK_BITRATE_KBPS
+    for bitrate in BITRATE_LADDER_KBPS:
+        if estimate_size_bytes(bitrate, duration_seconds) <= SIZE_BUDGET_BYTES:
+            return bitrate
+    return None
 
 # yt-dlp supports well over a thousand sites, several of which would happily
 # fetch from internal addresses. Restricting the host keeps the bot pointed at
@@ -120,7 +146,9 @@ def _fetch_metadata(url: str) -> dict[str, Any]:
         return ydl.extract_info(url, download=False)  # type: ignore[return-value]
 
 
-def _download_audio(url: str, target_dir: Path, state: dict[str, Any]) -> Path:
+def _download_audio(
+    url: str, target_dir: Path, state: dict[str, Any], bitrate_kbps: int
+) -> Path:
     """Blocking: run yt-dlp. Called in a worker thread."""
 
     def progress_hook(event: dict[str, Any]) -> None:
@@ -148,10 +176,13 @@ def _download_audio(url: str, target_dir: Path, state: dict[str, Any]) -> Path:
             {
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
-                "preferredquality": str(AUDIO_BITRATE_KBPS),
+                "preferredquality": str(bitrate_kbps),
             }
         ],
     }
+
+    if bitrate_kbps <= MONO_AT_OR_BELOW_KBPS:
+        options["postprocessor_args"] = {"extractaudio": ["-ac", "1"]}
 
     with yt_dlp.YoutubeDL(options) as ydl:
         ydl.extract_info(url, download=True)
@@ -210,11 +241,13 @@ async def _run_conversion(update: Update, url: str) -> None:
     title = info.get("title") or "video"
     duration = int(info.get("duration") or 0)
 
-    if duration and duration > MAX_DURATION_SECONDS:
+    bitrate = choose_bitrate(duration)
+    if bitrate is None:
+        lowest = BITRATE_LADDER_KBPS[-1]
+        smallest_mb = estimate_size_bytes(lowest, duration) / 1024 / 1024
         await status.edit_text(
-            f"❌ That video is {duration // 60} min long. "
-            f"Telegram caps bot uploads at 50 MB, so I only take up to "
-            f"{MAX_DURATION_SECONDS // 60} min."
+            f"❌ That video is {duration // 60} min long. Even at {lowest} kbps the audio "
+            f"would be about {smallest_mb:.0f} MB, over Telegram's 50 MB limit for bots."
         )
         return
 
@@ -238,7 +271,9 @@ async def _run_conversion(update: Update, url: str) -> None:
     with tempfile.TemporaryDirectory(prefix="ytaudio-") as tmp:
         target_dir = Path(tmp)
         try:
-            audio_path = await loop.run_in_executor(None, _download_audio, url, target_dir, state)
+            audio_path = await loop.run_in_executor(
+                None, _download_audio, url, target_dir, state, bitrate
+            )
         except Exception as error:  # noqa: BLE001 - yt-dlp raises many types
             log.warning("download failed for %s: %s", url, error)
             state["done"] = True
@@ -264,13 +299,18 @@ async def _run_conversion(update: Update, url: str) -> None:
         except BadRequest:
             pass
 
+        caption = f"🎧 {title}\n{bitrate} kbps · {size / 1024 / 1024:.1f} MB"
+        if bitrate < BITRATE_LADDER_KBPS[0]:
+            # Say so rather than quietly hand back worse audio than they expected.
+            caption += f"\n(reduced from {BITRATE_LADDER_KBPS[0]} kbps to fit Telegram's 50 MB limit)"
+
         with audio_path.open("rb") as audio:
             await update.message.reply_audio(
                 audio=audio,
                 title=title[:64],
                 duration=duration or None,
                 filename=f"{title[:64]}.mp3",
-                caption=f"🎧 {title}",
+                caption=caption,
                 write_timeout=300,
                 read_timeout=120,
             )
