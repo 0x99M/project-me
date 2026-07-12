@@ -35,15 +35,27 @@ const projects = [
 
 const experiences = [
   {
+    role: "Technical Team Lead · Revest",
+    summary:
+      "Leading delivery on the loyalty platform — portal revamp, sales targeting, and integrations with external loyalty and installment providers.",
+    date: "02/2026 – Present",
+    bullets: [
+      "Led the revamp of the Next.js portal, shipping 20+ features and migrating the UI from MUI to Untitled UI and Tailwind CSS alongside the design team.",
+      "Built sales targets, letting customers set goals across 15+ dimensions including customers, products, stores, and regions.",
+      "Led implementation of promotions, product variations, customer nationality and short address, and OTP verification for customer actions.",
+      "Integrated the platform with external loyalty programs and installment sales providers.",
+      "Implemented points transfer between different loyalty platforms.",
+    ],
+  },
+  {
     role: "Full Stack Developer · Revest",
     summary:
-      "Building a customer loyalty platform serving 400+ merchants with point-based rewards and real-time redemption tracking.",
-    date: "09/2025 – Present",
+      "Built a customer loyalty platform serving hundreds of stores with point-based rewards and real-time redemption tracking.",
+    date: "09/2025 – 01/2026",
     bullets: [
-      "Architected the scalable backend using NestJS and PostgreSQL, supporting 400+ active merchants with point-based loyalty programs.",
-      "Built real-time redemption tracking with WebSockets, reducing transaction confirmation time from 3s to under 200ms.",
-      "Designed and shipped a merchant-facing analytics dashboard with React and Recharts, surfacing insights across customers, redemptions, and campaign performance.",
-      "Led the migration from a monolithic API to a modular service layer, improving deploy frequency and isolating critical billing implementations.",
+      "Architected the backend with NestJS and PostgreSQL, supporting thousands of transactions daily, while shipping frontend features in Next.js.",
+      "Designed the system architecture and technical specifications — database schema, API contracts, and service boundaries.",
+      "Drove technical direction through architecture discussions, code reviews, and unblocking engineers on tricky implementations.",
     ],
   },
   {
@@ -100,7 +112,15 @@ const skillCategories = [
   {
     title: "Frameworks & Libraries",
     icon: "🚀",
-    tags: ["Next.js", "React", "FastAPI", "Flutter", "Spring", "Tailwind CSS"],
+    tags: [
+      "Next.js",
+      "React",
+      "NestJS",
+      "FastAPI",
+      "Flutter",
+      "Spring",
+      "Tailwind CSS",
+    ],
   },
   {
     title: "Cloud & Infrastructure",

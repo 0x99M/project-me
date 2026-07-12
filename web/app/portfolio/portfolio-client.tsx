@@ -162,14 +162,15 @@ export default function PortfolioClient({
         <section id="hero" className="section hero" data-animate>
           <div className="container hero-layout">
             <div className="hero-copy">
-              <p className="eyebrow">Full-stack engineer</p>
+              <p className="eyebrow">Full-stack engineer &amp; team lead</p>
               <h1>
                 Designing reliable products with calm, intentional code.
               </h1>
               <p className="lead">
-                4+ years building scalable SaaS, trading platforms, and
-                loyalty systems with TypeScript, Python, and AWS. Focused on
-                shipping resilient experiences that feel effortless to use.
+                5+ years building scalable applications across web, mobile,
+                and cloud — at Amazon and as an independent developer.
+                Passionate about system design, developer tools, and
+                competitive programming.
               </p>
             </div>
           </div>
