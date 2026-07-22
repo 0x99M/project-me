@@ -1,3 +1,7 @@
 python-telegram-bot==21.11.1
-yt-dlp>=2026.7.4
+# [default] pulls yt-dlp-ejs, the bundled JS solver scripts. deno is the JS runtime
+# it runs them on. Both are needed to solve YouTube's "n" challenge; without them
+# yt-dlp sees only storyboard images and reports "Requested format is not available".
+yt-dlp[default]>=2026.7.4
+deno>=2.6.6
 python-dotenv>=1.0.0
