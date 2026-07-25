@@ -12,6 +12,9 @@ from dotenv import load_dotenv
 class Config:
     bot_token: str
     allowed_user_ids: frozenset[int]
+    #: Postgres DSN. Optional: without it the /todo commands say so and the rest
+    #: of the bot runs unaffected, so local dev needs no database.
+    database_url: str | None
 
 
 def _required(name: str) -> str:
@@ -49,4 +52,5 @@ def load_config() -> Config:
     return Config(
         bot_token=_required("TELEGRAM_BOT_TOKEN"),
         allowed_user_ids=_parse_allowed_user_ids(_required("TELEGRAM_ALLOWED_USER_IDS")),
+        database_url=(os.environ.get("DATABASE_URL") or "").strip() or None,
     )

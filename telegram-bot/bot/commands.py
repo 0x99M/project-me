@@ -13,6 +13,14 @@ from dataclasses import dataclass, field
 from telegram import Message, Update
 from telegram.ext import ContextTypes
 
+from bot.tools.todo import (
+    mark_done,
+    mark_undone,
+    reorder,
+    show_list,
+    show_stats,
+    start_add,
+)
 from bot.tools.youtube_audio import convert_url, detect_youtube_url, start_youtube_audio
 
 Handler = Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[None]]
@@ -44,6 +52,52 @@ COMMANDS: tuple[Command, ...] = (
     Command(
         name="hint",
         description="List every command this bot knows",
+    ),
+    Command(
+        name="todo",
+        aliases=("to-do",),
+        description="Your daily routine checklist",
+        # A handler on a group: /todo renders the interactive list, while its
+        # children still show up under it in /hint.
+        handler=show_list,
+        children=(
+            Command(
+                name="todo_list",
+                aliases=("to-do-list",),
+                description="Show today's list",
+                handler=show_list,
+            ),
+            Command(
+                name="todo_add",
+                aliases=("to-do-add",),
+                description="Add an item (text after the command, or I'll ask)",
+                handler=start_add,
+            ),
+            Command(
+                name="todo_done",
+                aliases=("to-do-done",),
+                description="Mark item N done for today",
+                handler=mark_done,
+            ),
+            Command(
+                name="todo_undo",
+                aliases=("to-do-undo",),
+                description="Clear today's tick on item N",
+                handler=mark_undone,
+            ),
+            Command(
+                name="todo_order",
+                aliases=("to-do-order",),
+                description="Move item FROM to position TO",
+                handler=reorder,
+            ),
+            Command(
+                name="todo_stats",
+                aliases=("to-do-stats",),
+                description="Completion stats over the last 30 days",
+                handler=show_stats,
+            ),
+        ),
     ),
     Command(
         name="tools",

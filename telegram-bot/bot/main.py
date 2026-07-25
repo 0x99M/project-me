@@ -13,10 +13,13 @@ from telegram.ext import (
     filters,
 )
 
+from bot import db
 from bot.auth import is_authorized
 from bot.commands import Command, detect_matches, find_command, format_group, format_hint
 from bot.config import Config, load_config
 from bot.cookies import load_cookie_file
+from bot.tools import todo
+from bot.tools.todo import AWAITING_TODO_ADD, POOL_KEY, handle_add_text
 from bot.tools.youtube_audio import (
     AWAITING_KEY,
     AWAITING_YOUTUBE_URL,
@@ -33,7 +36,10 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 log = logging.getLogger("bot")
 
 # Follow-ups the bot is waiting on, keyed by what start_* set in user_data.
-PENDING_HANDLERS = {AWAITING_YOUTUBE_URL: handle_youtube_url}
+PENDING_HANDLERS = {
+    AWAITING_YOUTUBE_URL: handle_youtube_url,
+    AWAITING_TODO_ADD: handle_add_text,
+}
 
 # Where an unanswered auto-detect choice is parked, and the callback_data prefix
 # the buttons carry back. Keep the prefix short: callback_data caps at 64 bytes.
@@ -180,6 +186,24 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     log.error("handler failed", exc_info=context.error)
 
 
+async def on_startup(application: Application) -> None:
+    """Open the pool and run migrations before the first update is served."""
+    config: Config = application.bot_data["config"]
+    if config.database_url is None:
+        log.info("no DATABASE_URL configured (todo disabled)")
+        return
+    pool = await db.create_pool(config.database_url)
+    await db.migrate(pool)
+    application.bot_data[POOL_KEY] = pool
+    log.info("database connected; todo enabled")
+
+
+async def on_shutdown(application: Application) -> None:
+    pool = application.bot_data.get(POOL_KEY)
+    if pool is not None:
+        await pool.close()
+
+
 def main() -> None:
     config = load_config()
 
@@ -189,11 +213,20 @@ def main() -> None:
         # Not fatal: from a residential IP YouTube serves anonymous requests fine.
         log.info("no youtube cookies configured (fine on a residential IP)")
 
-    application = Application.builder().token(config.bot_token).build()
+    application = (
+        Application.builder()
+        .token(config.bot_token)
+        .post_init(on_startup)
+        .post_shutdown(on_shutdown)
+        .build()
+    )
     application.bot_data["config"] = config
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
     application.add_handler(MessageHandler(filters.COMMAND, on_message))
-    application.add_handler(CallbackQueryHandler(on_callback))
+    # Each namespace of inline buttons routes to its own handler by callback_data
+    # prefix: skill: for auto-detect choices, todo: for the checklist.
+    application.add_handler(CallbackQueryHandler(on_callback, pattern=r"^skill:"))
+    application.add_handler(CallbackQueryHandler(todo.on_callback, pattern=r"^todo:"))
     application.add_error_handler(on_error)
 
     log.info("starting; %d allowed user(s)", len(config.allowed_user_ids))

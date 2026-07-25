@@ -13,6 +13,8 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY bot ./bot
+# Applied on startup by bot.db.migrate; they must ship with the image.
+COPY migrations ./migrations
 
 # A polling bot, not a server: it opens no port. Exactly one instance may run at
 # a time, since concurrent getUpdates calls fight over the same update queue.
