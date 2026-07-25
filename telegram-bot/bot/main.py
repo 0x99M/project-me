@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import logging
 
-from telegram import Update
-from telegram.ext import Application, ContextTypes, MessageHandler, filters
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
 from bot.auth import is_authorized
-from bot.commands import find_command, format_group, format_hint
+from bot.commands import Command, detect_matches, find_command, format_group, format_hint
 from bot.config import Config, load_config
 from bot.cookies import load_cookie_file
 from bot.tools.youtube_audio import (
@@ -28,6 +34,11 @@ log = logging.getLogger("bot")
 
 # Follow-ups the bot is waiting on, keyed by what start_* set in user_data.
 PENDING_HANDLERS = {AWAITING_YOUTUBE_URL: handle_youtube_url}
+
+# Where an unanswered auto-detect choice is parked, and the callback_data prefix
+# the buttons carry back. Keep the prefix short: callback_data caps at 64 bytes.
+PENDING_CHOICE_KEY = "autodetect_choice"
+CALLBACK_PREFIX = "skill:"
 
 
 def _parse_command_name(text: str) -> str | None:
@@ -72,6 +83,19 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if handler is not None:
             await handler(update, context)
             return
+
+        # Auto-detect: if the message is something a skill recognises (a YouTube
+        # link, say), act on it directly. One match runs; several offer a choice.
+        matches = detect_matches(message.text)
+        if len(matches) == 1:
+            command, detected = matches[0]
+            assert command.run is not None
+            await command.run(message, context, detected)
+            return
+        if len(matches) > 1:
+            await _offer_choices(message, context, matches)
+            return
+
         await message.reply_text(format_hint())
         return
 
@@ -95,6 +119,63 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await message.reply_text(format_group(command))
 
 
+async def _offer_choices(
+    message, context: ContextTypes.DEFAULT_TYPE, matches: list[tuple[Command, str]]
+) -> None:
+    """Park the detected inputs and show one button per skill that matched.
+
+    The input can be long (a URL), so it stays in user_data; the button only
+    carries the command name, which the callback pairs back with its input.
+    """
+    assert context.user_data is not None
+    context.user_data[PENDING_CHOICE_KEY] = {
+        command.name: detected for command, detected in matches
+    }
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                command.label or command.description,
+                callback_data=f"{CALLBACK_PREFIX}{command.name}",
+            )
+        ]
+        for command, _ in matches
+    ]
+    await message.reply_text(
+        "I can handle that more than one way — pick one:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+    )
+
+
+async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if query is None:
+        return
+
+    config: Config = context.application.bot_data["config"]
+    # Answer regardless so the client stops its spinner; act only if authorised.
+    await query.answer()
+    if not is_authorized(update, config):
+        return
+
+    assert context.user_data is not None
+    data = query.data or ""
+    if not data.startswith(CALLBACK_PREFIX):
+        return
+    name = data[len(CALLBACK_PREFIX) :]
+
+    pending = context.user_data.get(PENDING_CHOICE_KEY) or {}
+    detected = pending.get(name)
+    command = find_command(name)
+    if command is None or command.run is None or detected is None:
+        await query.edit_message_text("That choice has expired — send it again.")
+        return
+
+    context.user_data.pop(PENDING_CHOICE_KEY, None)
+    # Collapse the buttons into the chosen action so it cannot be tapped twice.
+    await query.edit_message_text(f"▶️ {command.label or command.description}")
+    await command.run(query.message, context, detected)
+
+
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     log.error("handler failed", exc_info=context.error)
 
@@ -112,10 +193,11 @@ def main() -> None:
     application.bot_data["config"] = config
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
     application.add_handler(MessageHandler(filters.COMMAND, on_message))
+    application.add_handler(CallbackQueryHandler(on_callback))
     application.add_error_handler(on_error)
 
     log.info("starting; %d allowed user(s)", len(config.allowed_user_ids))
-    application.run_polling(allowed_updates=[Update.MESSAGE])
+    application.run_polling(allowed_updates=[Update.MESSAGE, Update.CALLBACK_QUERY])
 
 
 if __name__ == "__main__":

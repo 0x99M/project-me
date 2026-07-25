@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 import yt_dlp
-from telegram import Update
+from telegram import Message, Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
@@ -131,6 +131,21 @@ def parse_youtube_url(raw: str) -> str:
         raise InvalidYoutubeUrl("I could not find a video ID in that link.")
 
     return f"https://www.youtube.com/watch?v={video_id}"
+
+
+def detect_youtube_url(text: str) -> str | None:
+    """The canonical URL if `text` carries a YouTube link, else None.
+
+    Scans whitespace-separated tokens so a bare link and a link with surrounding
+    words both auto-detect. This is the matcher the dispatcher uses to decide a
+    plain message should skip straight to conversion.
+    """
+    for token in text.split():
+        try:
+            return parse_youtube_url(token)
+        except InvalidYoutubeUrl:
+            continue
+    return None
 
 
 def _explain_failure(error: Exception) -> str:
@@ -265,18 +280,34 @@ async def handle_youtube_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(f"❌ {error}\n\nRun /youtube_audio to try again.")
         return
 
+    await convert_url(update.message, context, url)
+
+
+async def convert_url(
+    message: Message, context: ContextTypes.DEFAULT_TYPE, url: str
+) -> None:
+    """Run the full conversion for an already-parsed URL.
+
+    The entry point for the auto-detect and button paths: `message` is whatever
+    the replies should hang off (the user's link message, or the bot's own
+    options message after a button tap). One conversion runs at a time per user.
+    """
+    assert context.user_data is not None
+    if context.user_data.get(JOB_RUNNING_KEY):
+        await message.reply_text("A conversion is already running. Wait for it to finish.")
+        return
+
     context.user_data[JOB_RUNNING_KEY] = True
     try:
-        await _run_conversion(update, url)
+        await _run_conversion(message, url)
     finally:
         context.user_data[JOB_RUNNING_KEY] = False
 
 
-async def _run_conversion(update: Update, url: str) -> None:
-    assert update.message is not None
+async def _run_conversion(message: Message, url: str) -> None:
     loop = asyncio.get_running_loop()
 
-    status = await update.message.reply_text("⏳ Looking up the video…")
+    status = await message.reply_text("⏳ Looking up the video…")
 
     try:
         info = await loop.run_in_executor(None, _fetch_metadata, url)
@@ -352,7 +383,7 @@ async def _run_conversion(update: Update, url: str) -> None:
             caption += f"\n(reduced from {BITRATE_LADDER_KBPS[0]} kbps to fit Telegram's 50 MB limit)"
 
         with audio_path.open("rb") as audio:
-            await update.message.reply_audio(
+            await message.reply_audio(
                 audio=audio,
                 title=title[:64],
                 duration=duration or None,
