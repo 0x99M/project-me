@@ -13,6 +13,16 @@ from dataclasses import dataclass, field
 from telegram import Message, Update
 from telegram.ext import ContextTypes
 
+from bot.tools.money import (
+    show_accounts,
+    show_categories,
+    show_dashboard,
+    show_history,
+    start_income,
+    start_spend,
+    start_transfer,
+)
+from bot.tools.money import show_stats as money_stats
 from bot.tools.todo import (
     mark_done,
     mark_undone,
@@ -96,6 +106,56 @@ COMMANDS: tuple[Command, ...] = (
                 aliases=("to-do-stats",),
                 description="Completion stats over the last 30 days",
                 handler=show_stats,
+            ),
+        ),
+    ),
+    Command(
+        name="money",
+        description="Track accounts, spending, income and transfers (JOD)",
+        # Like /todo: /money renders the dashboard, its children still list in /hint.
+        handler=show_dashboard,
+        children=(
+            Command(
+                name="money_spend",
+                aliases=("spend", "money-spend"),
+                description="Log a spend, e.g. /spend 25 lunch",
+                handler=start_spend,
+            ),
+            Command(
+                name="money_income",
+                aliases=("income", "money-income"),
+                description="Log income, e.g. /income 5000 salary",
+                handler=start_income,
+            ),
+            Command(
+                name="money_transfer",
+                aliases=("transfer", "money-transfer"),
+                description="Move money between accounts, e.g. /transfer 500",
+                handler=start_transfer,
+            ),
+            Command(
+                name="money_list",
+                aliases=("money-list",),
+                description="Recent transactions (tap to delete)",
+                handler=show_history,
+            ),
+            Command(
+                name="money_stats",
+                aliases=("money-stats",),
+                description="This month's spending and income",
+                handler=money_stats,
+            ),
+            Command(
+                name="money_accounts",
+                aliases=("money-accounts",),
+                description="Add, set default, or archive accounts",
+                handler=show_accounts,
+            ),
+            Command(
+                name="money_categories",
+                aliases=("money-categories",),
+                description="View and archive spending/income categories",
+                handler=show_categories,
             ),
         ),
     ),

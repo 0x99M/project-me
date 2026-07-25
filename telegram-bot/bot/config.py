@@ -12,8 +12,8 @@ from dotenv import load_dotenv
 class Config:
     bot_token: str
     allowed_user_ids: frozenset[int]
-    #: Postgres DSN. Optional: without it the /todo commands say so and the rest
-    #: of the bot runs unaffected, so local dev needs no database.
+    #: Postgres DSN. Optional: without it the /todo and /money commands say so and
+    #: the rest of the bot runs unaffected, so local dev needs no database.
     database_url: str | None
 
 

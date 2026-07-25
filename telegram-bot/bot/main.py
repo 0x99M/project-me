@@ -18,7 +18,8 @@ from bot.auth import is_authorized
 from bot.commands import Command, detect_matches, find_command, format_group, format_hint
 from bot.config import Config, load_config
 from bot.cookies import load_cookie_file
-from bot.tools import todo
+from bot.tools import money, todo
+from bot.tools.money import AWAITING_MONEY_TEXT, handle_text as handle_money_text
 from bot.tools.todo import AWAITING_TODO_ADD, POOL_KEY, handle_add_text
 from bot.tools.youtube_audio import (
     AWAITING_KEY,
@@ -39,6 +40,7 @@ log = logging.getLogger("bot")
 PENDING_HANDLERS = {
     AWAITING_YOUTUBE_URL: handle_youtube_url,
     AWAITING_TODO_ADD: handle_add_text,
+    AWAITING_MONEY_TEXT: handle_money_text,
 }
 
 # Where an unanswered auto-detect choice is parked, and the callback_data prefix
@@ -190,12 +192,12 @@ async def on_startup(application: Application) -> None:
     """Open the pool and run migrations before the first update is served."""
     config: Config = application.bot_data["config"]
     if config.database_url is None:
-        log.info("no DATABASE_URL configured (todo disabled)")
+        log.info("no DATABASE_URL configured (todo and money disabled)")
         return
     pool = await db.create_pool(config.database_url)
     await db.migrate(pool)
     application.bot_data[POOL_KEY] = pool
-    log.info("database connected; todo enabled")
+    log.info("database connected; todo and money enabled")
 
 
 async def on_shutdown(application: Application) -> None:
@@ -227,6 +229,7 @@ def main() -> None:
     # prefix: skill: for auto-detect choices, todo: for the checklist.
     application.add_handler(CallbackQueryHandler(on_callback, pattern=r"^skill:"))
     application.add_handler(CallbackQueryHandler(todo.on_callback, pattern=r"^todo:"))
+    application.add_handler(CallbackQueryHandler(money.on_callback, pattern=r"^money:"))
     application.add_error_handler(on_error)
 
     log.info("starting; %d allowed user(s)", len(config.allowed_user_ids))
