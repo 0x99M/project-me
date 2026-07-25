@@ -45,7 +45,8 @@ STREAK_HISTORY_DAYS = 400
 # assign the final 0..n-1. This offset is the temporary out-of-range home.
 _REORDER_OFFSET = 1_000_000
 
-_LABEL_MAX = 40
+# The toggle button spans the full row width, so it has room for the whole item.
+_LABEL_MAX = 60
 
 _NO_DB = (
     "🗄️ The to-do list needs a database, which isn't configured here "
@@ -250,12 +251,19 @@ def _render(rows: list[asyncpg.Record]) -> tuple[str, InlineKeyboardMarkup]:
     for number, row in enumerate(rows, start=1):
         item_id = row["id"]
         mark = "✅" if row["done_today"] else "⬜"
+        # The item is a full-width button on its own row (so the whole text shows
+        # and tapping it toggles), with the reorder/delete controls as an even
+        # three-way row beneath it.
         keyboard.append(
             [
                 InlineKeyboardButton(
                     _truncate(f"{mark} {number}. {row['text']}"),
                     callback_data=f"{CALLBACK_PREFIX}toggle:{item_id}",
-                ),
+                )
+            ]
+        )
+        keyboard.append(
+            [
                 InlineKeyboardButton("↑", callback_data=f"{CALLBACK_PREFIX}up:{item_id}"),
                 InlineKeyboardButton("↓", callback_data=f"{CALLBACK_PREFIX}down:{item_id}"),
                 InlineKeyboardButton("🗑", callback_data=f"{CALLBACK_PREFIX}del:{item_id}"),
