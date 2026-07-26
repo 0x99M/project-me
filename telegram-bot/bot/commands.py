@@ -19,6 +19,7 @@ from bot.tools.calendar import (
     start_event,
     start_from_sentence,
 )
+from bot.tools.clean import show_clean
 from bot.tools.money import (
     detect_amount,
     show_accounts,
@@ -195,6 +196,12 @@ COMMANDS: tuple[Command, ...] = (
                 handler=start_event,
             ),
         ),
+    ),
+    Command(
+        name="clean",
+        description="Delete recent chat messages (text, media, or all)",
+        menu_label="🧹 Clean",
+        handler=show_clean,
     ),
     Command(
         name="tools",

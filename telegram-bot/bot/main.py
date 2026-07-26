@@ -14,12 +14,12 @@ from telegram.ext import (
     filters,
 )
 
-from bot import db, menu
+from bot import chatlog, db, menu
 from bot.auth import is_authorized
 from bot.commands import Command, detect_matches, find_command
 from bot.config import Config, load_config
 from bot.cookies import load_cookie_file
-from bot.tools import calendar, money, todo
+from bot.tools import calendar, clean, money, todo
 from bot.tools.calendar import AWAITING_CAL_TEXT, CAL_TASK_KEY, handle_text as handle_cal_text
 from bot.tools.money import AWAITING_MONEY_TEXT, handle_text as handle_money_text
 from bot.tools.todo import AWAITING_TODO_ADD, POOL_KEY, handle_add_text
@@ -200,6 +200,8 @@ async def on_startup(application: Application) -> None:
     pool = await db.create_pool(config.database_url)
     await db.migrate(pool)
     application.bot_data[POOL_KEY] = pool
+    # Enable message logging (for /clean) now that the pool is up.
+    chatlog.set_pool(pool)
     # The calendar's reminders are the only thing the bot pushes unprompted: a
     # heartbeat that sends any that have come due.
     application.bot_data[CAL_TASK_KEY] = asyncio.create_task(
@@ -212,6 +214,7 @@ async def on_shutdown(application: Application) -> None:
     task = application.bot_data.get(CAL_TASK_KEY)
     if task is not None:
         task.cancel()
+    chatlog.set_pool(None)
     pool = application.bot_data.get(POOL_KEY)
     if pool is not None:
         await pool.close()
@@ -226,6 +229,10 @@ def main() -> None:
         # Not fatal: from a residential IP YouTube serves anonymous requests fine.
         log.info("no youtube cookies configured (fine on a residential IP)")
 
+    # Record the bot's own messages (for /clean) by patching ExtBot's senders
+    # before any bot is built.
+    chatlog.install_outgoing_logging()
+
     application = (
         Application.builder()
         .token(config.bot_token)
@@ -234,6 +241,8 @@ def main() -> None:
         .build()
     )
     application.bot_data["config"] = config
+    # Log every incoming message first (group -1), then let the real handlers run.
+    application.add_handler(MessageHandler(filters.ALL, chatlog.log_incoming), group=-1)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
     application.add_handler(MessageHandler(filters.COMMAND, on_message))
     # Each namespace of inline buttons routes to its own handler by callback_data
@@ -242,6 +251,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(todo.on_callback, pattern=r"^todo:"))
     application.add_handler(CallbackQueryHandler(money.on_callback, pattern=r"^money:"))
     application.add_handler(CallbackQueryHandler(calendar.on_callback, pattern=r"^cal:"))
+    application.add_handler(CallbackQueryHandler(clean.on_callback, pattern=r"^clean:"))
     application.add_handler(CallbackQueryHandler(menu.on_callback, pattern=r"^hint:"))
     application.add_error_handler(on_error)
 
