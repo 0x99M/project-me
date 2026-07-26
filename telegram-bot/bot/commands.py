@@ -13,6 +13,12 @@ from dataclasses import dataclass, field
 from telegram import Message, Update
 from telegram.ext import ContextTypes
 
+from bot.tools.calendar import (
+    detect_datetime,
+    show_calendar,
+    start_event,
+    start_from_sentence,
+)
 from bot.tools.money import (
     detect_amount,
     show_accounts,
@@ -167,6 +173,26 @@ COMMANDS: tuple[Command, ...] = (
                 aliases=("money-categories",),
                 description="View and archive spending/income categories",
                 handler=show_categories,
+            ),
+        ),
+    ),
+    Command(
+        name="calendar",
+        aliases=("events",),
+        description="Book events and get reminders (Asia/Riyadh)",
+        menu_label="📅 Calendar",
+        # /calendar lists upcoming events; its child still shows in /hint.
+        handler=show_calendar,
+        # A message carrying a date + time (e.g. "interview at 14:00 03-10-2026")
+        # is auto-detected, just like a link or a bare number.
+        detect=detect_datetime,
+        run=start_from_sentence,
+        label="📅 Add to calendar",
+        children=(
+            Command(
+                name="event",
+                description="Add an event, e.g. /event interview at 14:00 03-10-2026",
+                handler=start_event,
             ),
         ),
     ),
