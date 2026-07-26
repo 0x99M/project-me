@@ -14,10 +14,12 @@ from telegram import Message, Update
 from telegram.ext import ContextTypes
 
 from bot.tools.money import (
+    detect_amount,
     show_accounts,
     show_categories,
     show_dashboard,
     show_history,
+    start_from_number,
     start_income,
     start_spend,
     start_transfer,
@@ -118,6 +120,11 @@ COMMANDS: tuple[Command, ...] = (
         menu_label="💼 Money",
         # Like /todo: /money renders the dashboard, its children still list in /hint.
         handler=show_dashboard,
+        # Send a bare number and it's auto-detected as money (the only number
+        # feature today, so it runs straight away with no picker).
+        detect=detect_amount,
+        run=start_from_number,
+        label="💰 Log this amount",
         children=(
             Command(
                 name="money_spend",

@@ -200,6 +200,18 @@ async def category_owned(
     )
 
 
+async def category_by_id(
+    pool: asyncpg.Pool, user_id: int, category_id: int
+) -> asyncpg.Record | None:
+    """A category of either kind — used when the kind is what the tap reveals."""
+    return await pool.fetchrow(
+        "SELECT id, name, emoji, kind FROM money_category "
+        "WHERE id = $1 AND user_id = $2 AND archived_at IS NULL",
+        category_id,
+        user_id,
+    )
+
+
 async def add_category(
     pool: asyncpg.Pool, user_id: int, kind: str, name: str, emoji: str | None = None
 ) -> int:
@@ -519,6 +531,18 @@ def _parse_amount(raw: str) -> Decimal | None:
     return value.quantize(_QUANTUM)
 
 
+def detect_amount(text: str) -> str | None:
+    """The normalised amount if the whole message is just a positive number.
+
+    This is the auto-detect matcher (like the YouTube link one): a bare number
+    means "money", so /money is offered without the user naming a command. It is
+    strict on purpose — "spent 25" or "25 lunch" are not bare numbers and fall
+    through to the normal handling.
+    """
+    amount = _parse_amount(text)
+    return None if amount is None else str(amount)
+
+
 def _parse_balance(raw: str) -> Decimal | None:
     """An opening balance: any finite number, including 0 or negative (debt)."""
     cleaned = raw.strip().replace(",", "").replace(CURRENCY, "").strip()
@@ -591,9 +615,19 @@ def _render_dashboard(
 def _render_category_picker(
     pending: dict, categories: list[asyncpg.Record]
 ) -> tuple[str, InlineKeyboardMarkup]:
-    verb = "Spent" if pending["flow"] == "expense" else "Received"
-    note = f" · {pending['note']}" if pending.get("note") else ""
-    text = f"{verb} {fmt(pending['amount'])}{note}\n\nPick a category:"
+    if pending.get("origin") == "balance":
+        # Reached from a "new balance" number: the account is fixed and the amount
+        # is the difference the bot worked out, so explain that rather than "Spent".
+        direction = "a spend" if pending["flow"] == "expense" else "income"
+        account_label = _label(pending.get("account_emoji"), pending["account_name"])
+        text = (
+            f"New balance {fmt(pending['new_balance'])} on {account_label}\n"
+            f"That's {direction} of {fmt(pending['amount'])} — tag it:"
+        )
+    else:
+        verb = "Spent" if pending["flow"] == "expense" else "Received"
+        note = f" · {pending['note']}" if pending.get("note") else ""
+        text = f"{verb} {fmt(pending['amount'])}{note}\n\nPick a category:"
 
     keyboard: list[list[InlineKeyboardButton]] = []
     row: list[InlineKeyboardButton] = []
@@ -611,10 +645,59 @@ def _render_category_picker(
         keyboard.append(row)
 
     keyboard.append([InlineKeyboardButton("➕ New category", callback_data=_cb("newcat"))])
-    account_label = _label(pending.get("account_emoji"), pending["account_name"])
-    keyboard.append(
-        [InlineKeyboardButton(f"from {account_label} · change", callback_data=_cb("acct"))]
+    # The account is locked when the amount was derived from it (new-balance flow):
+    # changing it would change the difference, so only offer the switch otherwise.
+    if not pending.get("fixed_account"):
+        account_label = _label(pending.get("account_emoji"), pending["account_name"])
+        keyboard.append(
+            [InlineKeyboardButton(f"from {account_label} · change", callback_data=_cb("acct"))]
+        )
+    keyboard.append([InlineKeyboardButton("✖ Cancel", callback_data=_cb("cancel"))])
+    return text, InlineKeyboardMarkup(keyboard)
+
+
+def _render_kind_question(pending: dict) -> tuple[str, InlineKeyboardMarkup]:
+    text = (
+        f"💰 {fmt(pending['entered'])} — what is this?\n\n"
+        "🆕 New balance — what the account holds now (I'll record the difference).\n"
+        "💸 Transaction — the amount of one spend or income."
     )
+    keyboard = [
+        [
+            InlineKeyboardButton("🆕 New balance", callback_data=_cb("autobal")),
+            InlineKeyboardButton("💸 Transaction", callback_data=_cb("autotxn")),
+        ],
+        [InlineKeyboardButton("✖ Cancel", callback_data=_cb("cancel"))],
+    ]
+    return text, InlineKeyboardMarkup(keyboard)
+
+
+def _render_combined_picker(
+    pending: dict,
+    expense: list[asyncpg.Record],
+    income: list[asyncpg.Record],
+) -> tuple[str, InlineKeyboardMarkup]:
+    account_label = _label(pending.get("account_emoji"), pending["account_name"])
+    text = (
+        f"Transaction {fmt(pending['amount'])} from {account_label}\n"
+        "Pick a category — 🔻 spending subtracts, 🔺 income adds:"
+    )
+    keyboard: list[list[InlineKeyboardButton]] = []
+    for mark, categories in (("🔻", expense), ("🔺", income)):
+        row: list[InlineKeyboardButton] = []
+        for category in categories:
+            row.append(
+                InlineKeyboardButton(
+                    _truncate(f"{mark} {_label(category['emoji'], category['name'])}", _LABEL_CAT),
+                    callback_data=_cb("pickc", str(category["id"])),
+                )
+            )
+            if len(row) == 2:
+                keyboard.append(row)
+                row = []
+        if row:
+            keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("➕ New category", callback_data=_cb("newcatk"))])
     keyboard.append([InlineKeyboardButton("✖ Cancel", callback_data=_cb("cancel"))])
     return text, InlineKeyboardMarkup(keyboard)
 
@@ -813,6 +896,30 @@ async def show_dashboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     accounts = await list_accounts(pool, update.effective_user.id)
     text, markup = _render_dashboard(accounts)
     await _respond(update, text, markup)
+
+
+async def start_from_number(
+    message: Message, context: ContextTypes.DEFAULT_TYPE, detected: str
+) -> None:
+    """Auto-detect entry: a bare number was sent. Ask what it means, then branch.
+
+    This is the `run` half of the detect/run pair, so it kicks off the flow and
+    hands the rest to on_callback (new balance vs transaction, account, category).
+    """
+    assert context.user_data is not None
+    pool = _pool(context)
+    if pool is None:
+        await message.reply_text(_NO_DB)
+        return
+    amount = _parse_amount(detected)
+    user = message.from_user
+    if amount is None or user is None:
+        return
+    await ensure_seeded(pool, user.id)
+    context.user_data.pop(AWAITING_KEY, None)
+    context.user_data[MONEY_PENDING] = {"origin": "number", "entered": amount}
+    text, markup = _render_kind_question(context.user_data[MONEY_PENDING])
+    await message.reply_text(text, reply_markup=markup)
 
 
 async def start_spend(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1206,6 +1313,191 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await _account_archive(update, context, rest)
     elif action == "catarch":
         await _category_archive(update, context, rest)
+    elif action == "autobal":
+        await _auto_choose(update, context, "balance")
+    elif action == "autotxn":
+        await _auto_choose(update, context, "txn")
+    elif action == "balacct":
+        await _auto_balance_account(update, context, rest)
+    elif action == "txnacct":
+        await _auto_txn_account(update, context, rest)
+    elif action == "pickc":
+        await _auto_txn_pick(update, context, rest)
+    elif action == "newcatk":
+        await _auto_txn_newcat(update, context)
+    elif action == "nck":
+        await _auto_txn_newcat_kind(update, context, rest)
+
+
+# --- auto-detect (a bare number) flow ----------------------------------------
+
+
+async def _auto_choose(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, mode: str
+) -> None:
+    """Q1 answered: the number is a new balance, or a transaction amount."""
+    assert update.callback_query is not None and update.effective_user is not None
+    pending = (context.user_data or {}).get(MONEY_PENDING) or {}
+    if pending.get("origin") != "number" or "entered" not in pending:
+        await update.callback_query.edit_message_text("That expired — send the number again.")
+        return
+    pool = _pool(context)
+    if pool is None:
+        await update.callback_query.edit_message_text(_NO_DB)
+        return
+    accounts = await list_accounts(pool, update.effective_user.id)
+    entered = pending["entered"]
+    if mode == "balance":
+        pending["mode"] = "balance"
+        text, markup = _render_account_choices(
+            accounts, "balacct", f"New balance {fmt(entered)} — which account?"
+        )
+    else:
+        pending["mode"] = "txn"
+        pending["amount"] = entered
+        text, markup = _render_account_choices(
+            accounts, "txnacct", f"Transaction {fmt(entered)} — from which account?"
+        )
+    await update.callback_query.edit_message_text(text, reply_markup=markup)
+
+
+async def _auto_balance_account(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, rest: str
+) -> None:
+    """A "new balance" account was picked: record the difference from its current."""
+    assert update.callback_query is not None and update.effective_user is not None
+    pending = (context.user_data or {}).get(MONEY_PENDING) or {}
+    if pending.get("mode") != "balance" or "entered" not in pending:
+        await update.callback_query.edit_message_text("That expired — send the number again.")
+        return
+    pool = _pool(context)
+    if pool is None:
+        return
+    user_id = update.effective_user.id
+    try:
+        account_id = int(rest)
+    except ValueError:
+        return
+    account = await account_owned(pool, user_id, account_id)
+    if account is None:
+        await update.callback_query.edit_message_text("That account is gone.")
+        return
+    current = await account_balance(pool, account_id)
+    entered = pending["entered"]
+    delta = entered - current
+    if delta == 0:
+        _clear_pending(context)
+        await update.callback_query.edit_message_text(
+            f"✅ {account['name']} is already at {fmt(entered)} — nothing to record."
+        )
+        return
+    # Below the entered balance means money left (a spend); above means money came in.
+    kind = "expense" if delta < 0 else "income"
+    pending.update(
+        flow=kind,
+        amount=abs(delta),
+        note=None,
+        account_id=account["id"],
+        account_name=account["name"],
+        account_emoji=account["emoji"],
+        fixed_account=True,
+        origin="balance",
+        new_balance=entered,
+    )
+    categories = await list_categories(pool, user_id, kind)
+    text, markup = _render_category_picker(pending, categories)
+    await update.callback_query.edit_message_text(text, reply_markup=markup)
+
+
+async def _auto_txn_account(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, rest: str
+) -> None:
+    """A transaction account was picked: show categories of both kinds."""
+    assert update.callback_query is not None and update.effective_user is not None
+    pending = (context.user_data or {}).get(MONEY_PENDING) or {}
+    if pending.get("mode") != "txn" or "amount" not in pending:
+        await update.callback_query.edit_message_text("That expired — send the number again.")
+        return
+    pool = _pool(context)
+    if pool is None:
+        return
+    user_id = update.effective_user.id
+    try:
+        account_id = int(rest)
+    except ValueError:
+        return
+    account = await account_owned(pool, user_id, account_id)
+    if account is None:
+        await update.callback_query.edit_message_text("That account is gone.")
+        return
+    pending.update(
+        account_id=account["id"],
+        account_name=account["name"],
+        account_emoji=account["emoji"],
+    )
+    expense = await list_categories(pool, user_id, "expense")
+    income = await list_categories(pool, user_id, "income")
+    text, markup = _render_combined_picker(pending, expense, income)
+    await update.callback_query.edit_message_text(text, reply_markup=markup)
+
+
+async def _auto_txn_pick(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, rest: str
+) -> None:
+    """A category was tapped in the combined picker: its kind sets the direction."""
+    assert update.callback_query is not None and update.effective_user is not None
+    pending = (context.user_data or {}).get(MONEY_PENDING) or {}
+    if pending.get("mode") != "txn" or "amount" not in pending or "account_id" not in pending:
+        await update.callback_query.edit_message_text("That expired — send the number again.")
+        return
+    pool = _pool(context)
+    if pool is None:
+        return
+    try:
+        category_id = int(rest)
+    except ValueError:
+        return
+    category = await category_by_id(pool, update.effective_user.id, category_id)
+    if category is None:
+        await update.callback_query.edit_message_text(
+            "That category is gone — send the number again."
+        )
+        return
+    pending["flow"] = category["kind"]
+    await _commit_entry(update, context, str(category_id))
+
+
+async def _auto_txn_newcat(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """New category from the combined picker: the kind isn't known yet, so ask."""
+    assert update.callback_query is not None
+    pending = (context.user_data or {}).get(MONEY_PENDING) or {}
+    if pending.get("mode") != "txn" or "amount" not in pending:
+        await update.callback_query.edit_message_text("That expired — send the number again.")
+        return
+    keyboard = [
+        [
+            InlineKeyboardButton("🔻 Spending", callback_data=_cb("nck", "expense")),
+            InlineKeyboardButton("🔺 Income", callback_data=_cb("nck", "income")),
+        ],
+        [InlineKeyboardButton("✖ Cancel", callback_data=_cb("cancel"))],
+    ]
+    await update.callback_query.edit_message_text(
+        "New category — spending or income?", reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+async def _auto_txn_newcat_kind(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, rest: str
+) -> None:
+    pending = (context.user_data or {}).get(MONEY_PENDING) or {}
+    if pending.get("mode") != "txn" or "amount" not in pending or rest not in ("expense", "income"):
+        if update.callback_query is not None:
+            await update.callback_query.edit_message_text("That expired — send the number again.")
+        return
+    pending["flow"] = rest
+    await _prompt_new_category(update, context)
 
 
 async def _handle_menu(
