@@ -256,15 +256,22 @@ def _download_audio(
 
 
 async def start_youtube_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Entry point: ask for the link. The reply is picked up by the dispatcher."""
-    assert update.message is not None and context.user_data is not None
+    """Entry point: ask for the link. The reply is picked up by the dispatcher.
+
+    Reachable both as a typed command and from the /hint menu button, so it works
+    off effective_message rather than assuming a command message.
+    """
+    assert context.user_data is not None
+    message = update.effective_message
+    if message is None:
+        return
 
     if context.user_data.get(JOB_RUNNING_KEY):
-        await update.message.reply_text("A conversion is already running. Wait for it to finish.")
+        await message.reply_text("A conversion is already running. Wait for it to finish.")
         return
 
     context.user_data[AWAITING_KEY] = AWAITING_YOUTUBE_URL
-    await update.message.reply_text("Send me the YouTube link.\n\n/cancel to abort.")
+    await message.reply_text("Send me the YouTube link.\n\n/cancel to abort.")
 
 
 async def handle_youtube_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

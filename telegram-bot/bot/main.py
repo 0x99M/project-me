@@ -13,9 +13,9 @@ from telegram.ext import (
     filters,
 )
 
-from bot import db
+from bot import db, menu
 from bot.auth import is_authorized
-from bot.commands import Command, detect_matches, find_command, format_group, format_hint
+from bot.commands import Command, detect_matches, find_command
 from bot.config import Config, load_config
 from bot.cookies import load_cookie_file
 from bot.tools import money, todo
@@ -104,27 +104,27 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             await _offer_choices(message, context, matches)
             return
 
-        await message.reply_text(format_hint())
+        await menu.show_menu(update, context)
         return
 
     # A command supersedes any pending prompt, so /hint mid-flow is not swallowed.
     context.user_data.pop(AWAITING_KEY, None)
 
     if name in ("hint", "start", "help"):
-        await message.reply_text(format_hint())
+        await menu.show_menu(update, context)
         return
 
     command = find_command(name)
     if command is None:
-        await message.reply_text(f"Unknown command.\n\n{format_hint()}")
+        await menu.show_menu(update, context, header="Unknown command.")
         return
 
     if command.handler is not None:
         await command.handler(update, context)
         return
 
-    # A group with no handler: show what lives under it.
-    await message.reply_text(format_group(command))
+    # A group with no handler: show its section of the menu.
+    await menu.show_submenu(update, context, command)
 
 
 async def _offer_choices(
@@ -230,6 +230,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(on_callback, pattern=r"^skill:"))
     application.add_handler(CallbackQueryHandler(todo.on_callback, pattern=r"^todo:"))
     application.add_handler(CallbackQueryHandler(money.on_callback, pattern=r"^money:"))
+    application.add_handler(CallbackQueryHandler(menu.on_callback, pattern=r"^hint:"))
     application.add_error_handler(on_error)
 
     log.info("starting; %d allowed user(s)", len(config.allowed_user_ids))

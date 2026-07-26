@@ -56,6 +56,8 @@ class Command:
     run: Runner | None = None
     #: Button text when this command is offered among several auto-detected options.
     label: str | None = None
+    #: Button text for this command in the /hint menu; falls back to /name.
+    menu_label: str | None = None
 
 
 COMMANDS: tuple[Command, ...] = (
@@ -67,6 +69,7 @@ COMMANDS: tuple[Command, ...] = (
         name="todo",
         aliases=("to-do",),
         description="Your daily routine checklist",
+        menu_label="🗒 To-do",
         # A handler on a group: /todo renders the interactive list, while its
         # children still show up under it in /hint.
         handler=show_list,
@@ -112,6 +115,7 @@ COMMANDS: tuple[Command, ...] = (
     Command(
         name="money",
         description="Track accounts, spending, income and transfers (JOD)",
+        menu_label="💼 Money",
         # Like /todo: /money renders the dashboard, its children still list in /hint.
         handler=show_dashboard,
         children=(
@@ -162,6 +166,7 @@ COMMANDS: tuple[Command, ...] = (
     Command(
         name="tools",
         description="Utilities",
+        menu_label="🛠 Tools",
         children=(
             Command(
                 name="convert",

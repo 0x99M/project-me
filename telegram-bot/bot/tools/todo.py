@@ -303,17 +303,32 @@ async def _show(message: Message, pool: asyncpg.Pool, user_id: int) -> None:
     await message.reply_text(text, reply_markup=markup)
 
 
+async def _respond(
+    update: Update, text: str, markup: InlineKeyboardMarkup | None = None
+) -> None:
+    """Edit in place when opened from a button (the /hint menu), else reply fresh."""
+    query = update.callback_query
+    if query is not None:
+        try:
+            await query.edit_message_text(text, reply_markup=markup)
+        except BadRequest:
+            pass
+    elif update.effective_message is not None:
+        await update.effective_message.reply_text(text, reply_markup=markup)
+
+
 # --- command handlers --------------------------------------------------------
 
 
 async def show_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/todo and /todo_list — render the interactive checklist."""
-    assert update.message is not None and update.effective_user is not None
+    """/todo, /todo_list, and the 🗒 To-do menu button — the interactive checklist."""
+    assert update.effective_user is not None
     pool = _pool(context)
     if pool is None:
-        await update.message.reply_text(_NO_DB)
+        await _respond(update, _NO_DB)
         return
-    await _show(update.message, pool, update.effective_user.id)
+    text, markup = _render(await list_today(pool, update.effective_user.id, today()))
+    await _respond(update, text, markup)
 
 
 async def start_add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
