@@ -193,6 +193,16 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def on_startup(application: Application) -> None:
     """Open the pool and run migrations before the first update is served."""
+    # Confirm the PDF engine for /money's report is usable (needs the Pango
+    # system libraries). Non-fatal: /export handles its own failure, and the rest
+    # of the bot must run even if this is somehow broken.
+    try:
+        import weasyprint  # noqa: F401
+
+        log.info("PDF engine (WeasyPrint) available")
+    except Exception as error:  # noqa: BLE001
+        log.warning("WeasyPrint unavailable; /export will error: %s", error)
+
     config: Config = application.bot_data["config"]
     if config.database_url is None:
         log.info("no DATABASE_URL configured (todo, money and calendar disabled)")

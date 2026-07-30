@@ -8,6 +8,6 @@ python-dotenv>=1.0.0
 # Async Postgres driver for the /todo checklist. Optional at runtime: with no
 # DATABASE_URL the bot starts fine and only the /todo commands are disabled.
 asyncpg>=0.30.0
-# Pure-Python PDF generation for /money's report export. Ships manylinux wheels
-# (pulls Pillow), so it needs no build tools; the DejaVu font is added via apt.
-reportlab>=4.0.0
+# HTML/CSS -> PDF for /money's report export (the Modernist template). Needs the
+# Pango system libraries (installed in the Dockerfile); Archivo ships in fonts/.
+weasyprint>=60
