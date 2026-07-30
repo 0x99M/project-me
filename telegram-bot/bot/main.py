@@ -19,7 +19,7 @@ from bot.auth import is_authorized
 from bot.commands import Command, detect_matches, find_command
 from bot.config import Config, load_config
 from bot.cookies import load_cookie_file
-from bot.tools import calendar, clean, money, todo
+from bot.tools import calendar, clean, money, money_export, todo
 from bot.tools.calendar import AWAITING_CAL_TEXT, CAL_TASK_KEY, handle_text as handle_cal_text
 from bot.tools.money import AWAITING_MONEY_TEXT, handle_text as handle_money_text
 from bot.tools.todo import AWAITING_TODO_ADD, POOL_KEY, handle_add_text
@@ -250,6 +250,7 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(on_callback, pattern=r"^skill:"))
     application.add_handler(CallbackQueryHandler(todo.on_callback, pattern=r"^todo:"))
     application.add_handler(CallbackQueryHandler(money.on_callback, pattern=r"^money:"))
+    application.add_handler(CallbackQueryHandler(money_export.on_callback, pattern=r"^exp:"))
     application.add_handler(CallbackQueryHandler(calendar.on_callback, pattern=r"^cal:"))
     application.add_handler(CallbackQueryHandler(clean.on_callback, pattern=r"^clean:"))
     application.add_handler(CallbackQueryHandler(menu.on_callback, pattern=r"^hint:"))

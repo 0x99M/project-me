@@ -608,6 +608,8 @@ def _render_dashboard(
             InlineKeyboardButton("🗒 History", callback_data=_cb("menu", "history")),
             InlineKeyboardButton("🏦 Accounts", callback_data=_cb("menu", "accounts")),
         ],
+        # Routed to the money_export handler (exp: prefix), not this module's.
+        [InlineKeyboardButton("📄 Export PDF", callback_data="exp:open")],
     ]
     return "\n".join(lines), InlineKeyboardMarkup(keyboard)
 

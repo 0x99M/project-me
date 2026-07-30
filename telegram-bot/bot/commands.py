@@ -32,6 +32,7 @@ from bot.tools.money import (
     start_transfer,
 )
 from bot.tools.money import show_stats as money_stats
+from bot.tools.money_export import start_export
 from bot.tools.todo import (
     mark_done,
     mark_undone,
@@ -174,6 +175,12 @@ COMMANDS: tuple[Command, ...] = (
                 aliases=("money-categories",),
                 description="View and archive spending/income categories",
                 handler=show_categories,
+            ),
+            Command(
+                name="money_export",
+                aliases=("export", "money-export"),
+                description="Export a monthly/yearly report as PDF",
+                handler=start_export,
             ),
         ),
     ),
