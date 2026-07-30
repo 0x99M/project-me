@@ -215,11 +215,11 @@ _CSS = """
   --space-1: 4px; --space-2: 8px; --space-3: 12px;
   --space-4: 16px; --space-6: 24px; --space-8: 32px;
 }
-@page { size: A4; margin: 0.7in; }
+@page { size: A4; margin: 0.35in; }
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  background: var(--color-bg);
+  background: transparent;  /* let the page (paper) show through; no colored box */
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 13px;
