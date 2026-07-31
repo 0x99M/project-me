@@ -1,0 +1,250 @@
+/* /solo — a minimal editorial one-pager. Scoped under .solo-root so it never
+   leans on the Tailwind/globals reset from the rest of the site. Monochrome,
+   type-forward, with a single restrained red accent (shared with the report
+   PDF, so the brand reads as one). */
+
+.solo-root {
+  --bg: #f4f3f1;
+  --ink: #201e1d;
+  --muted: #6f6a64;
+  --line: rgba(32, 30, 29, 0.14);
+  --accent: #ec3013;
+
+  font-family: var(--font-archivo), system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.solo {
+  min-height: 100vh;
+}
+
+.solo .wrap {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1.25rem, 5vw, 3rem) clamp(2rem, 6vw, 4rem);
+}
+
+/* --- topbar --- */
+.solo .topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: clamp(0.75rem, 2vw, 1rem);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+}
+.solo .mark {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* --- intro --- */
+.solo .intro {
+  padding: clamp(3rem, 12vw, 8rem) 0 clamp(2.5rem, 8vw, 5rem);
+}
+.solo .eyebrow {
+  margin: 0 0 clamp(1rem, 3vw, 1.75rem);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  font-weight: 600;
+  color: var(--accent);
+}
+.solo .name {
+  margin: 0;
+  font-size: clamp(3.25rem, 14vw, 10.5rem);
+  line-height: 0.9;
+  letter-spacing: -0.035em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.solo .name .dot {
+  color: var(--accent);
+}
+.solo .lead {
+  margin: clamp(1.75rem, 4vw, 2.75rem) 0 0;
+  max-width: 42ch;
+  font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+  line-height: 1.45;
+  font-weight: 400;
+}
+.solo .creds {
+  margin: clamp(1.5rem, 3vw, 2rem) 0 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+/* --- section label (shared) --- */
+.solo .section-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--ink);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-weight: 600;
+}
+.solo .section-label .count {
+  color: var(--muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- products --- */
+.solo .products {
+  margin-top: clamp(2rem, 6vw, 3.5rem);
+}
+.solo .index {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.solo .index li {
+  border-bottom: 1px solid var(--line);
+}
+.solo .row {
+  display: grid;
+  grid-template-columns: 3rem 1fr auto;
+  gap: clamp(0.75rem, 3vw, 2.5rem);
+  align-items: start;
+  padding: clamp(1.5rem, 4vw, 2.5rem) 0;
+  color: inherit;
+  text-decoration: none;
+}
+.solo .num {
+  padding-top: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  transition: color 0.2s ease;
+}
+.solo .row-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.solo .row-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: clamp(1.5rem, 4.5vw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+}
+.solo .arrow {
+  font-size: 0.55em;
+  color: var(--accent);
+  transition: transform 0.2s ease;
+}
+.solo .row-desc {
+  margin: 0.6rem 0 0;
+  max-width: 52ch;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.solo .row-meta {
+  padding-top: 0.8rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  white-space: nowrap;
+  text-align: right;
+}
+.solo a.row:hover .arrow {
+  transform: translate(3px, -3px);
+}
+.solo a.row:hover .num {
+  color: var(--accent);
+}
+.solo a.row:hover .row-title {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+/* --- contact --- */
+.solo .contact {
+  margin-top: clamp(3.5rem, 9vw, 6rem);
+}
+.solo .email {
+  display: inline-block;
+  margin-top: clamp(1.25rem, 3vw, 2rem);
+  font-size: clamp(1.9rem, 7vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-decoration: none;
+}
+.solo .email:hover {
+  color: var(--accent);
+}
+.solo .links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: clamp(1rem, 3vw, 1.75rem);
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.solo .links a {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.solo .links a:hover {
+  color: var(--ink);
+}
+.solo .links .sep {
+  color: var(--line);
+}
+
+/* --- footer --- */
+.solo .foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: clamp(3rem, 8vw, 5rem);
+  padding-top: clamp(0.75rem, 2vw, 1rem);
+  border-top: 1px solid var(--line);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+/* --- mobile --- */
+@media (max-width: 640px) {
+  .solo .row {
+    grid-template-columns: 2rem 1fr;
+  }
+  .solo .row-meta {
+    display: none;
+  }
+}
+
+/* --- dark mode --- */
+@media (prefers-color-scheme: dark) {
+  .solo-root {
+    --bg: #141312;
+    --ink: #f3f1ec;
+    --muted: #948d84;
+    --line: rgba(243, 241, 236, 0.15);
+  }
+}
