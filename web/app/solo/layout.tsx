@@ -20,5 +20,18 @@ export default function SoloLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className={`solo-root ${archivo.variable}`}>{children}</div>;
+  return (
+    <div className={`solo-root ${archivo.variable}`}>
+      {/* Paint the whole page canvas (html/body) to match, so overscroll never
+          flashes white. Scoped to /solo: this <style> is only in the DOM while
+          this layout is mounted, so /portfolio and / keep their own background. */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html:
+            "html,body{background:#f4f3f1}@media(prefers-color-scheme:dark){html,body{background:#141312}}",
+        }}
+      />
+      {children}
+    </div>
+  );
 }

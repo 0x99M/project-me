@@ -22,6 +22,21 @@
   min-height: 100vh;
 }
 
+/* Scroll-progress bar pinned to the top; JS sets its scaleX (0 → 1). */
+.solo .progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  z-index: 100;
+  pointer-events: none;
+  will-change: transform;
+}
+
 .solo .wrap {
   width: 100%;
   max-width: 1080px;
@@ -179,54 +194,142 @@
   text-underline-offset: 6px;
 }
 
-/* --- contact --- */
-.solo .contact {
-  margin-top: clamp(3.5rem, 9vw, 6rem);
-}
-.solo .email {
-  display: inline-block;
-  margin-top: clamp(1.25rem, 3vw, 2rem);
-  font-size: clamp(1.9rem, 7vw, 4rem);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-  text-decoration: none;
-}
-.solo .email:hover {
-  color: var(--accent);
-}
-.solo .links {
+/* --- social icons (in the footer) --- */
+.solo .socials {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.85rem;
-  margin-top: clamp(1rem, 3vw, 1.75rem);
-  font-size: 0.9rem;
-  color: var(--muted);
+  gap: 1.1rem;
 }
-.solo .links a {
+.solo .socials a {
+  display: inline-flex;
   color: var(--muted);
-  text-decoration: none;
   transition: color 0.15s ease;
 }
-.solo .links a:hover {
-  color: var(--ink);
+.solo .socials a:hover {
+  color: var(--accent);
 }
-.solo .links .sep {
-  color: var(--line);
+.solo .socials svg {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 /* --- footer --- */
 .solo .foot {
   display: flex;
   justify-content: space-between;
-  margin-top: clamp(3rem, 8vw, 5rem);
+  align-items: center;
+  margin-top: clamp(3.5rem, 10vw, 7rem);
   padding-top: clamp(0.75rem, 2vw, 1rem);
   border-top: 1px solid var(--line);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--muted);
+}
+
+/* --- motion --- */
+/* The name is split into masked lines so each can slide up from behind a clip. */
+.solo .name .line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+}
+.solo .name .line-inner {
+  display: block;
+}
+
+@keyframes solo-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes solo-fade-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes solo-line-up {
+  from {
+    transform: translateY(110%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* All motion is opt-in: without this query (reduced-motion) every element keeps
+   its natural, fully-visible state. */
+@media (prefers-reduced-motion: no-preference) {
+  /* hero, on load */
+  .solo .topbar {
+    animation: solo-fade-down 0.8s ease both;
+  }
+  .solo .eyebrow {
+    opacity: 0;
+    animation: solo-fade-up 0.8s ease 0.1s both;
+  }
+  .solo .name .line-inner {
+    transform: translateY(110%);
+    animation: solo-line-up 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .solo .name .line:nth-child(1) .line-inner {
+    animation-delay: 0.18s;
+  }
+  .solo .name .line:nth-child(2) .line-inner {
+    animation-delay: 0.3s;
+  }
+  .solo .lead {
+    opacity: 0;
+    animation: solo-fade-up 0.8s ease 0.5s both;
+  }
+  .solo .creds {
+    opacity: 0;
+    animation: solo-fade-up 0.8s ease 0.62s both;
+  }
+
+  /* scroll reveals (the observer adds .in as each enters the viewport) */
+  .solo [data-reveal] {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .solo [data-reveal].in {
+    opacity: 1;
+    transform: none;
+  }
+  /* stagger the product rows when they reveal together */
+  .solo .index li:nth-child(2) {
+    transition-delay: 0.09s;
+  }
+  .solo .index li:nth-child(3) {
+    transition-delay: 0.18s;
+  }
+}
+
+/* hover micro-interactions */
+.solo .row-title {
+  transition: transform 0.2s ease;
+}
+.solo a.row:hover .row-title {
+  transform: translateX(4px);
+}
+.solo .socials a {
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.solo .socials a:hover {
+  transform: translateY(-2px);
 }
 
 /* --- mobile --- */

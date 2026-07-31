@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -3 148 148" fill="none">
+  <!-- Same rosette mark as the /portfolio header (public/favicon.svg), tuned for a
+       browser tab: a heavier stroke so it reads at 16px, and a light variant so it
+       stays visible on dark tab bars. -->
+  <style>
+    rect { stroke: #4a5240; stroke-width: 4; }
+    @media (prefers-color-scheme: dark) {
+      rect { stroke: #e6e4dd; }
+    }
+  </style>
+  <rect x="21.2107" y="21.2107" width="99" height="99" rx="9.5"/>
+  <rect x="35.7089" y="10.0858" width="99" height="99" rx="9.5" transform="rotate(15 35.7089 10.0858)"/>
+  <rect x="52.5924" y="3.09244" width="99" height="99" rx="9.5" transform="rotate(30 52.5924 3.09244)"/>
+  <rect x="70.7107" y="0.707107" width="99" height="99" rx="9.5" transform="rotate(45 70.7107 0.707107)"/>
+  <rect x="88.8289" y="3.09244" width="99" height="99" rx="9.5" transform="rotate(60 88.8289 3.09244)"/>
+  <rect x="105.712" y="10.0858" width="99" height="99" rx="9.5" transform="rotate(75 105.712 10.0858)"/>
+  <rect x="120.211" y="21.2107" width="99" height="99" rx="9.5" transform="rotate(90 120.211 21.2107)"/>
+</svg>
