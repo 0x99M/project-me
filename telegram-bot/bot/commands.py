@@ -33,6 +33,7 @@ from bot.tools.money import (
 )
 from bot.tools.money import show_stats as money_stats
 from bot.tools.money_export import start_export
+from bot.tools.recurring import show_recurring
 from bot.tools.todo import (
     mark_done,
     mark_undone,
@@ -203,6 +204,13 @@ COMMANDS: tuple[Command, ...] = (
                 handler=start_event,
             ),
         ),
+    ),
+    Command(
+        name="remind",
+        aliases=("recurring", "reminders"),
+        description="Schedule recurring messages (daily, weekly, or on an interval)",
+        menu_label="🔁 Recurring",
+        handler=show_recurring,
     ),
     Command(
         name="clean",

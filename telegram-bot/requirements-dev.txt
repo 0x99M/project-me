@@ -1,0 +1,4 @@
+# Dev/test only — NOT installed into the runtime Docker image (that uses
+# requirements.txt). Install locally with:  pip install -r requirements-dev.txt
+-r requirements.txt
+pytest>=8
