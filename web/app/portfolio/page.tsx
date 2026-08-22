@@ -6,7 +6,7 @@ const projects = [
     description:
       "AI-powered SaaS that turns YouTube cooking videos into structured, searchable recipes — with tiered subscriptions, real-time extraction, and export to PDF or DOCX.",
     image: "/portfolio/videos-recipes.png",
-    link: "https://videos.recipes",
+    link: "https://github.com/0x99M/videos-recipes",
     technologies: [
       "Next.js",
       "TypeScript",
@@ -66,7 +66,7 @@ const experiences = [
     bullets: [
       {
         before: "Shipped ",
-        link: { href: "https://videos.recipes", label: "Videos.Recipes" },
+        link: { href: "https://github.com/0x99M/videos-recipes", label: "Videos.Recipes" },
         after:
           " — a SaaS that extracts structured recipes from YouTube cooking videos in real time via youtubei.js, with PostgreSQL/Drizzle storage, full-text search, and one-click export to PDF or DOCX.",
       },

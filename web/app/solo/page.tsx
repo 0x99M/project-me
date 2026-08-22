@@ -18,7 +18,7 @@ type Social = {
 const products: Product[] = [
   {
     title: "Videos.Recipes",
-    href: "https://videos.recipes",
+    href: "https://github.com/0x99M/videos-recipes",
     desc: "AI that turns YouTube cooking videos into structured, searchable recipes — tiered billing, real-time extraction, export to PDF or DOCX.",
     meta: "AI · SaaS",
   },
