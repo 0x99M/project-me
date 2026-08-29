@@ -609,7 +609,7 @@ def _render_dashboard(
             InlineKeyboardButton("🏦 Accounts", callback_data=_cb("menu", "accounts")),
         ],
         # Routed to the money_export handler (exp: prefix), not this module's.
-        [InlineKeyboardButton("📄 Export PDF", callback_data="exp:open")],
+        [InlineKeyboardButton("📄 Export (PDF / CSV)", callback_data="exp:open")],
     ]
     return "\n".join(lines), InlineKeyboardMarkup(keyboard)
 

@@ -9,12 +9,14 @@ Asia/Riyadh; transfers between accounts are excluded (they're not income/expense
 from __future__ import annotations
 
 import asyncio
+import csv
 import logging
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from html import escape
+from io import BytesIO, StringIO
 from pathlib import Path
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -22,7 +24,14 @@ from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from bot.auth import is_authorized
-from bot.tools.money import CURRENCY, POOL_KEY, TIMEZONE, fmt, list_accounts
+from bot.tools.money import (
+    CURRENCY,
+    CURRENCY_DECIMALS,
+    POOL_KEY,
+    TIMEZONE,
+    fmt,
+    list_accounts,
+)
 
 log = logging.getLogger(__name__)
 
@@ -133,6 +142,25 @@ async def _transactions(pool, user_id, start, end):
         "WHERE t.user_id=$1 AND t.kind IN ('expense','income') "
         "AND t.occurred_on >= $2 AND t.occurred_on < $3 ORDER BY t.occurred_on, t.id",
         user_id, start, end,
+    )
+
+
+async def _all_transactions(pool, user_id):
+    """Every ledger row for a user, oldest first — the full-history CSV source.
+
+    Unlike the PDF (which is income/expense only), this keeps transfers too: a
+    complete export shouldn't make money silently appear or vanish. Each transfer
+    is its two rows (transfer_out on the source, transfer_in on the destination),
+    which is exactly how the ledger stores it.
+    """
+    return await pool.fetch(
+        "SELECT t.occurred_on, t.kind, t.amount, t.note, t.created_at, "
+        "c.name AS category, a.name AS account "
+        "FROM money_txn t "
+        "LEFT JOIN money_category c ON c.id = t.category_id "
+        "JOIN money_account a ON a.id = t.account_id "
+        "WHERE t.user_id=$1 ORDER BY t.occurred_on, t.id",
+        user_id,
     )
 
 
@@ -575,6 +603,43 @@ def build_pdf(report: dict) -> bytes:
     return HTML(string=_render_html(report)).write_pdf()
 
 
+# --- CSV (full transaction history) ------------------------------------------
+
+# Plain, machine-friendly columns — one row per ledger entry, in occurrence order.
+_CSV_COLUMNS = ["date", "kind", "category", "account", "amount", "currency", "note", "created_at"]
+
+
+def _csv_amount(value: Decimal) -> str:
+    """The raw stored amount, no thousands separators (kind carries the sign)."""
+    return f"{value:.{CURRENCY_DECIMALS}f}"
+
+
+def build_csv(rows) -> bytes:
+    """Render ledger rows to CSV bytes. Pure — takes anything indexable by column.
+
+    UTF-8 with a BOM so Excel opens non-ASCII notes correctly; the csv module
+    handles quoting for notes that contain commas, quotes or newlines.
+    """
+    buf = StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_CSV_COLUMNS)
+    for r in rows:
+        created = r["created_at"]
+        writer.writerow(
+            [
+                r["occurred_on"].isoformat(),
+                r["kind"],
+                r["category"] or "",
+                r["account"],
+                _csv_amount(r["amount"]),
+                CURRENCY,
+                r["note"] or "",
+                created.astimezone(TIMEZONE).strftime("%Y-%m-%d %H:%M") if created else "",
+            ]
+        )
+    return buf.getvalue().encode("utf-8-sig")
+
+
 # --- handlers ----------------------------------------------------------------
 
 
@@ -589,8 +654,10 @@ def _command_args(text: str) -> str:
 
 def _render_chooser() -> tuple[str, InlineKeyboardMarkup]:
     text = (
-        "📄 Export a money report — pick a period:\n\n"
-        "Or type a specific one: /export 2026-06 (month) or /export 2026 (year)."
+        "📄 Export your money data:\n\n"
+        "• PDF — a formatted month or year report.\n"
+        "• CSV — your complete transaction history, spreadsheet-ready.\n\n"
+        "Or type a period: /export 2026-06 (month) or /export 2026 (year)."
     )
     keyboard = [
         [
@@ -600,6 +667,11 @@ def _render_chooser() -> tuple[str, InlineKeyboardMarkup]:
         [
             InlineKeyboardButton("📅 This year", callback_data=f"{CALLBACK_PREFIX}gen:tyear"),
             InlineKeyboardButton("📅 Last year", callback_data=f"{CALLBACK_PREFIX}gen:lyear"),
+        ],
+        [
+            InlineKeyboardButton(
+                "📊 Full history · CSV", callback_data=f"{CALLBACK_PREFIX}csv:all"
+            )
         ],
     ]
     return text, InlineKeyboardMarkup(keyboard)
@@ -615,10 +687,14 @@ async def start_export(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     args = _command_args(message.text or "")
     if args:
+        if args.lower() in ("csv", "all", "history"):
+            await _generate_and_send_csv(update, context)
+            return
         period = _parse_period(args)
         if period is None:
             await message.reply_text(
-                "Use /export 2026-06 (a month) or /export 2026 (a year), or just /export to pick."
+                "Use /export 2026-06 (a month), /export 2026 (a year), or /export csv "
+                "(full history), or just /export to pick."
             )
             return
         await _generate_and_send(update, context, period)
@@ -651,6 +727,8 @@ async def on_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         period = _resolve_spec(rest)
         if period is not None:
             await _generate_and_send(update, context, period)
+    elif action == "csv":
+        await _generate_and_send_csv(update, context)
 
 
 async def _generate_and_send(
@@ -678,8 +756,6 @@ async def _generate_and_send(
             await update.effective_message.reply_text(message)
         return
 
-    from io import BytesIO
-
     buf = BytesIO(pdf)
     buf.name = f"{period.filename}.pdf"
     await context.bot.send_document(
@@ -691,5 +767,43 @@ async def _generate_and_send(
     if query is not None:
         try:
             await query.edit_message_text(f"📄 Sent the {period.label} report.")
+        except BadRequest:
+            pass
+
+
+async def _generate_and_send_csv(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    """Export the user's entire transaction history as a CSV file."""
+    assert update.effective_user is not None and update.effective_chat is not None
+    pool = _pool(context)
+    query = update.callback_query
+    if query is not None:
+        try:
+            await query.edit_message_text("📊 Exporting your full history…")
+        except BadRequest:
+            pass
+
+    rows = await _all_transactions(pool, update.effective_user.id)
+    if not rows:
+        message = "🗒 No transactions yet — nothing to export."
+        if query is not None:
+            await query.edit_message_text(message)
+        else:
+            await update.effective_message.reply_text(message)
+        return
+
+    buf = BytesIO(build_csv(rows))
+    filename = f"money-history-{_today().isoformat()}.csv"
+    buf.name = filename
+    await context.bot.send_document(
+        chat_id=update.effective_chat.id,
+        document=buf,
+        filename=filename,
+        caption=f"💼 Full transaction history · {len(rows)} rows",
+    )
+    if query is not None:
+        try:
+            await query.edit_message_text(f"📊 Sent your full history ({len(rows)} rows).")
         except BadRequest:
             pass
