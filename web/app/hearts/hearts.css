@@ -1,0 +1,57 @@
+/* /hearts — draw an S, it becomes gold hearts that draw a heart, ending on M ❤ S */
+
+  /* Layout: one full screen, a night sky in deep wine. Everything is centred on the heart:
+     the S you draw sits where the big heart will appear, and the hearts gather around that point.
+     A single deliberate dark look, like a lit stage at an evening wedding. */
+  .hearts-root{
+    color-scheme: dark;
+    --night:#12080f; --wine-deep:#240e1c; --wine-hi:#43182f;
+    --gold:#e3bf78; --gold-hi:#f7e3b0; --gold-lo:#b8863f;
+    --rose:#d8344f; --blush:#f1c4c6; --cream:#f5ead8; --muted:#c9adb5;
+    --f-script:var(--font-hearts-script), "Snell Roundhand", "Apple Chancery", cursive;
+    --f-ar:var(--font-hearts-ar), "Noto Naskh Arabic", "Traditional Arabic", serif;
+  }
+  .hearts-root #fx{ position:fixed; inset:0; width:100%; height:100%; z-index:3; pointer-events:none; }
+
+  .hearts-root .rays, .hearts-root .halo{ position:fixed; z-index:1; pointer-events:none; opacity:0; border-radius:50%; }
+  .hearts-root .rays{ width:1200px; height:1200px; margin:-600px 0 0 -600px;
+    background:repeating-conic-gradient(from 0deg, rgba(247,214,140,.13) 0deg 5deg, transparent 5deg 15deg);
+    -webkit-mask:radial-gradient(closest-side, #000 8%, rgba(0,0,0,.5) 35%, transparent 72%); mask:radial-gradient(closest-side, #000 8%, rgba(0,0,0,.5) 35%, transparent 72%);
+    animation:hearts-spin 80s linear infinite; }
+  .hearts-root .halo{ width:520px; height:520px; margin:-260px 0 0 -260px;
+    background:radial-gradient(closest-side, rgba(255,92,120,.42), rgba(216,52,79,.16) 45%, transparent); }
+  @keyframes hearts-spin{ to{ transform:rotate(360deg); } }
+
+  .hearts-root .final{ position:fixed; inset:0; z-index:4; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:clamp(6px, 1.6vh, 14px); pointer-events:none;
+    padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+  .hearts-root .row{ display:flex; align-items:center; justify-content:center; gap:clamp(16px, 4.5vw, 48px); direction:ltr; }
+  .hearts-root .L{ font-family:var(--f-script); font-weight:400; font-size:clamp(84px, 21vw, 200px); line-height:1.25; opacity:0;
+    padding:0 .3em .12em; margin:0 -.3em -.12em; /* room for the swashes, so the gold reaches them */
+    background:linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, var(--gold-lo)); -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 2px 18px rgba(227,191,120,.3)); }
+  .hearts-root .big{ width:clamp(92px, 22vw, 190px); height:auto; opacity:0; overflow:visible; filter:drop-shadow(0 10px 34px rgba(216,52,79,.65)); }
+
+  .hearts-root .guide{ position:fixed; z-index:5; height:min(46vh, 340px); width:auto; aspect-ratio:200 / 260; transform:translate(-50%, -50%);
+    overflow:visible; cursor:crosshair; touch-action:none; outline:none; }
+  .hearts-root .guide:focus-visible{ outline:2px solid var(--gold-hi); outline-offset:12px; border-radius:24px; }
+  .hearts-root .guide .bed{ fill:none; stroke:rgba(227,191,120,.10); stroke-width:22; stroke-linecap:round; }
+  .hearts-root .guide .dots{ fill:none; stroke:rgba(247,227,176,.55); stroke-width:5; stroke-linecap:round; stroke-dasharray:.1 15; }
+  .hearts-root .guide .ink{ fill:none; stroke:url(#goldg); stroke-width:13; stroke-linecap:round; filter:drop-shadow(0 0 7px rgba(247,214,140,.75)); }
+  .hearts-root .guide .start{ fill:var(--gold-hi); transform-box:fill-box; transform-origin:center; animation:hearts-dot 1.6s ease-in-out infinite; }
+  @keyframes hearts-dot{ 0%,100%{ transform:scale(1); opacity:1 } 50%{ transform:scale(1.6); opacity:.55 } }
+  .hearts-root .hint{ position:fixed; z-index:5; left:0; right:0; margin:0; text-align:center; color:var(--muted); font-size:17px; pointer-events:none;
+    animation:hearts-breathe 2.6s ease-in-out infinite; }
+  @keyframes hearts-breathe{ 0%,100%{ opacity:.55 } 50%{ opacity:1 } }
+
+  .hearts-root .replay{ position:fixed; z-index:6; left:50%; transform:translateX(-50%); bottom:calc(18px + env(safe-area-inset-bottom, 0px));
+    font:inherit; font-size:15px; color:var(--gold-hi); background:rgba(18,8,15,.5); border:1px solid rgba(227,191,120,.22);
+    border-radius:999px; padding:5px 18px; cursor:pointer; }
+  .hearts-root .replay:hover{ border-color:rgba(227,191,120,.55); }
+  .hearts-root .replay:focus-visible{ outline:2px solid var(--gold-hi); outline-offset:3px; }
+
+  @media (prefers-reduced-motion: reduce){ .hearts-root .guide .start, .hearts-root .hint, .hearts-root .rays{ animation:none; } }
+  /* smoothness: the moving pieces get their own compositor layers */
+  .hearts-root .big, .hearts-root .rays, .hearts-root .halo, .hearts-root .L, .hearts-root .guide{ will-change:transform, opacity; }
+  .hearts-root{ position:fixed; inset:0; overflow:hidden; background:radial-gradient(130% 90% at 50% 42%, var(--wine-hi), var(--wine-deep) 48%, var(--night) 100%);
+    color:var(--cream); font-family:var(--f-ar); -webkit-tap-highlight-color:transparent; touch-action:manipulation; user-select:none; -webkit-user-select:none; }
