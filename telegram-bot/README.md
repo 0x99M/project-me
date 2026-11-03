@@ -51,6 +51,38 @@ cp .env.example .env      # then fill in the token
 .venv/bin/python -m bot.main
 ```
 
+## Running a second bot for someone else
+
+The same code runs as a separate bot: a second Railway service built from this
+directory, with its own token and allowlist. No code changes are needed.
+
+It **must have its own Postgres**. The reminder loops (`/calendar`, `/remind`)
+send every due row in the database, whoever created it, through whichever bot is
+running the loop. Two bots sharing one database would each try to send the other
+bot's reminders.
+
+1. In @BotFather: `/newbot`, copy the token, then `/setjoingroups` → **Disable**.
+2. Railway, in the "Me" project: **+ New → Database → PostgreSQL**. Give it a
+   name such as `Postgres-2`.
+3. **+ New → GitHub Repo → `0x99M/project-me`**. In the service settings:
+   - Root Directory: `telegram-bot`. It builds from the Dockerfile.
+   - Replicas: **1**, one region. Two instances fight over `getUpdates`.
+   - No public domain. The bot opens no port.
+4. Variables on the new service:
+   ```
+   TELEGRAM_BOT_TOKEN=<the new token>
+   TELEGRAM_ALLOWED_USER_IDS=<their numeric ID>
+   DATABASE_URL=${{Postgres-2.DATABASE_URL}}
+   ```
+   Don't know their ID yet? Put `1` there, deploy, have them message the bot,
+   then read the `denied: user=...` line in the deploy log.
+5. Deploy. The log should show `migrations: 5 applied`, then
+   `starting; 1 allowed user(s)`.
+
+Both services redeploy on every push to `main` that touches the bot.
+
+Times are Asia/Riyadh (UTC+3) and `/money` is in JOD, for both bots.
+
 ## Commands
 
 ```
@@ -58,6 +90,7 @@ cp .env.example .env      # then fill in the token
 /tools — Utilities
   /convert — Convert media from one form to another
     /youtube_audio — Send a YouTube link, get its audio back
+    /video_audio — Send a video (up to 100 MB), get its audio back
 ```
 
 Invoking a group (`/tools`, `/convert`) lists what is under it. `/cancel` aborts a
@@ -68,6 +101,14 @@ downloading and transcoding. Telegram caps bot uploads at 50 MB, so videos over
 30 minutes are refused up front rather than after a long conversion.
 
 Only use it for audio you have the rights to.
+
+`/video_audio` needs no command at all: send the bot a video (as a video, a video
+note, or a file) and it replies with the audio as MP3, at a bitrate that fits
+Telegram's 50 MB upload cap. The Bot API won't let a bot download files over
+20 MB, so bigger videos are fetched over MTProto with the same bot token. That
+takes `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` from <https://my.telegram.org>
+→ API development tools. Without them, videos up to 20 MB still work. One pair
+serves every bot.
 
 ## Adding a command
 

@@ -19,7 +19,7 @@ from bot.auth import is_authorized
 from bot.commands import Command, detect_matches, find_command
 from bot.config import Config, load_config
 from bot.cookies import load_cookie_file
-from bot.tools import calendar, clean, money, money_export, recurring, todo
+from bot.tools import calendar, clean, money, money_export, recurring, todo, video_audio
 from bot.tools.calendar import AWAITING_CAL_TEXT, CAL_TASK_KEY, handle_text as handle_cal_text
 from bot.tools.money import AWAITING_MONEY_TEXT, handle_text as handle_money_text
 from bot.tools.recurring import (
@@ -28,6 +28,7 @@ from bot.tools.recurring import (
     handle_text as handle_recur_text,
 )
 from bot.tools.todo import AWAITING_TODO_ADD, POOL_KEY, handle_add_text
+from bot.tools.video_audio import AWAITING_VIDEO
 from bot.tools.youtube_audio import (
     AWAITING_KEY,
     AWAITING_YOUTUBE_URL,
@@ -50,6 +51,7 @@ PENDING_HANDLERS = {
     AWAITING_MONEY_TEXT: handle_money_text,
     AWAITING_CAL_TEXT: handle_cal_text,
     AWAITING_RECUR_TEXT: handle_recur_text,
+    AWAITING_VIDEO: video_audio.handle_waiting_text,
 }
 
 # Where an unanswered auto-detect choice is parked, and the callback_data prefix
@@ -134,6 +136,16 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     # A group with no handler: show its section of the menu.
     await menu.show_submenu(update, context, command)
+
+
+async def on_video(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """A video, from anyone: gate it like text, then convert it to audio."""
+    config: Config = context.application.bot_data["config"]
+    if not is_authorized(update, config):
+        user = update.effective_user
+        log.warning("denied video: user=%s", user.id if user else "unknown")
+        return
+    await video_audio.on_video(update, context)
 
 
 async def _offer_choices(
@@ -231,6 +243,7 @@ async def on_startup(application: Application) -> None:
 
 
 async def on_shutdown(application: Application) -> None:
+    await video_audio.close_mtproto()
     for key in (CAL_TASK_KEY, RECUR_TASK_KEY):
         task = application.bot_data.get(key)
         if task is not None:
@@ -266,6 +279,9 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.ALL, chatlog.log_incoming), group=-1)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_message))
     application.add_handler(MessageHandler(filters.COMMAND, on_message))
+    application.add_handler(
+        MessageHandler(filters.VIDEO | filters.VIDEO_NOTE | filters.Document.VIDEO, on_video)
+    )
     # Each namespace of inline buttons routes to its own handler by callback_data
     # prefix: skill: for auto-detect choices, todo: for the checklist.
     application.add_handler(CallbackQueryHandler(on_callback, pattern=r"^skill:"))
@@ -278,7 +294,11 @@ def main() -> None:
     application.add_handler(CallbackQueryHandler(menu.on_callback, pattern=r"^hint:"))
     application.add_error_handler(on_error)
 
-    log.info("starting; %d allowed user(s)", len(config.allowed_user_ids))
+    log.info(
+        "starting; %d allowed user(s); large video downloads %s",
+        len(config.allowed_user_ids),
+        "enabled" if config.mtproto_ready else "off (no TELEGRAM_API_ID/HASH)",
+    )
     application.run_polling(allowed_updates=[Update.MESSAGE, Update.CALLBACK_QUERY])
 
 

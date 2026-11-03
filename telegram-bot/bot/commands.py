@@ -42,6 +42,7 @@ from bot.tools.todo import (
     show_stats,
     start_add,
 )
+from bot.tools.video_audio import start_video_audio
 from bot.tools.youtube_audio import convert_url, detect_youtube_url, start_youtube_audio
 
 Handler = Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[None]]
@@ -237,6 +238,12 @@ COMMANDS: tuple[Command, ...] = (
                         detect=detect_youtube_url,
                         run=convert_url,
                         label="🎧 Extract audio",
+                    ),
+                    Command(
+                        name="video_audio",
+                        aliases=("video-audio",),
+                        description="Send a video (up to 100 MB), get its audio back",
+                        handler=start_video_audio,
                     ),
                 ),
             ),

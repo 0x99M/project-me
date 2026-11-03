@@ -11,3 +11,7 @@ asyncpg>=0.30.0
 # HTML/CSS -> PDF for /money's report export (the Modernist template). Needs the
 # Pango system libraries (installed in the Dockerfile); Archivo ships in fonts/.
 weasyprint>=60
+# MTProto client, used only to download videos over the Bot API's 20 MB limit for
+# /video_audio. cryptg is its native AES; without it 100 MB crawls in pure Python.
+telethon>=1.40
+cryptg>=0.5
