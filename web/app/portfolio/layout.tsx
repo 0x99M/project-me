@@ -1,17 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Anton, Archivo } from "next/font/google";
+import localFont from "next/font/local";
 import "./portfolio.css";
 
-const anton = Anton({
-  subsets: ["latin"],
+// Self-hosted (both OFL, latin subset from Google Fonts) rather than
+// next/font/google: Turbopack fails Railway's build on Archivo's Google CSS
+// ("next/font/google queries have exactly one entry"), and local files also
+// keep the build off the network.
+const anton = localFont({
+  src: "./fonts/Anton-latin.woff2",
   weight: "400",
   variable: "--font-pf-display",
   display: "swap",
 });
 
-const archivo = Archivo({
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
+const archivo = localFont({
+  src: "./fonts/Archivo-latin.woff2",
+  weight: "400 700",
   variable: "--font-pf-body",
   display: "swap",
 });
