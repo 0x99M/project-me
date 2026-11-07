@@ -14,7 +14,7 @@ const anton = localFont({
 });
 
 const archivo = localFont({
-  src: "./fonts/Archivo-latin.woff2",
+  src: "../fonts/Archivo-latin.woff2",
   weight: "400 700",
   variable: "--font-pf-body",
   display: "swap",
@@ -23,7 +23,7 @@ const archivo = localFont({
 export const metadata: Metadata = {
   title: "0x99M — Mustafa builds things that ship",
   description:
-    "Solo developer in Amman. Shadowkit, Videos.Recipes, Clipmer and more: designed, built and run by one person.",
+    "Solo developer. Shadowkit, Videos.Recipes, Clipmer and more: designed, built and run by one person.",
 };
 
 export const viewport: Viewport = {

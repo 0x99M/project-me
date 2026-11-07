@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { Archivo } from "next/font/google";
+import localFont from "next/font/local";
 import "./solo.css";
 
-const archivo = Archivo({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "800"],
+// Self-hosted variable Archivo (latin, 100-900), shared with /portfolio:
+// next/font/google's Archivo CSS fails Turbopack builds.
+const archivo = localFont({
+  src: "../fonts/Archivo-latin.woff2",
+  weight: "100 900",
   variable: "--font-archivo",
   display: "swap",
 });

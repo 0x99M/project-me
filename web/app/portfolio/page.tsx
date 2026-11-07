@@ -146,7 +146,7 @@ export default function PortfolioPage() {
           </h1>
           <div className="pf-hero-foot">
             <p className="pf-lead">
-              Solo developer in Amman. {products.length} products so far, across phone,
+              Solo developer. {products.length} products so far, across phone,
               desktop and web. Each one designed, built and run by me.
             </p>
             <a href={`#${products[0].id}`} className="pf-down" aria-label="Jump to the first product">
