@@ -1,155 +1,188 @@
-import PortfolioClient from "./portfolio-client";
+type Product = {
+  id: string;
+  name: string;
+  meta: string;
+  pitch: string;
+  /** Band colours; the text colour has to pass 4.5:1 on the band. */
+  band: { bg: string; fg: string; accent: string; buttonText: string };
+  link?: { href: string; label: string };
+  image?: { src: string; alt: string; width: number; height: number };
+  /** Long names get a smaller display size so they still fit one line. */
+  long?: boolean;
+};
 
-const projects = [
+const products: Product[] = [
   {
-    title: "Videos.Recipes",
-    description:
-      "AI-powered SaaS that turns YouTube cooking videos into structured, searchable recipes — with tiered subscriptions, real-time extraction, and export to PDF or DOCX.",
-    image: "/portfolio/videos-recipes.png",
-    link: "https://github.com/0x99M/videos-recipes",
-    technologies: [
-      "Next.js",
-      "TypeScript",
-      "PostgreSQL",
-      "DrizzleORM",
-      "Clerk Auth",
-      "Paddle",
-      "Railway",
-    ],
+    id: "shadowkit",
+    name: "Shadowkit",
+    meta: "Android · iOS · Linux",
+    pitch:
+      "Your life, one quiet app. Money, habits, notes and a journal on your phone; network, focus and battery on your computer. Offline. No account.",
+    band: { bg: "#0d1014", fg: "#edeff2", accent: "#46e0e6", buttonText: "#0d1014" },
+    link: { href: "https://shadowkit.app", label: "shadowkit.app" },
+    image: {
+      src: "/portfolio/shadowkit.png",
+      alt: "Shadowkit on two phones: the Today screen and a habit streak grid",
+      width: 1200,
+      height: 630,
+    },
   },
   {
-    title: "Clipmer",
-    description:
-      "Tray-based clipboard history manager for Linux. Keyboard-first popup with search, pinned items, notes, and auto-paste — built for Ubuntu on GNOME/Wayland.",
-    image: "/portfolio/clipmer.png",
-    link: "https://clipmer.app",
-    technologies: [
-      "Electron",
-      "Next.js",
-      "Tailwind CSS",
-      "GNOME Shell",
-      "Railway",
-    ],
+    id: "recipes",
+    name: "Videos.Recipes",
+    meta: "AI SaaS · Open source",
+    pitch:
+      "Paste a YouTube cooking video, get a clean recipe: ingredients, steps, searchable, exportable to PDF or DOCX.",
+    band: { bg: "#c2412b", fg: "#ffffff", accent: "#ffffff", buttonText: "#8e2a18" },
+    link: { href: "https://github.com/0x99M/videos-recipes", label: "Source on GitHub" },
+    image: {
+      src: "/portfolio/videos-recipes.png",
+      alt: "Videos.Recipes showing a recipe extracted from a video",
+      width: 1920,
+      height: 955,
+    },
+    long: true,
+  },
+  {
+    id: "clipmer",
+    name: "Clipmer",
+    meta: "Linux desktop",
+    pitch:
+      "Everything you copied, one shortcut away. Search, pin, annotate and auto-paste on GNOME and Wayland.",
+    band: { bg: "#4535c9", fg: "#ffffff", accent: "#ffffff", buttonText: "#2e2194" },
+    link: { href: "https://clipmer.app", label: "clipmer.app" },
+    image: {
+      src: "/portfolio/clipmer.png",
+      alt: "Clipmer's clipboard history popup",
+      width: 1920,
+      height: 956,
+    },
+  },
+  {
+    id: "backtesting",
+    name: "Backtesting",
+    meta: "Fintech SaaS",
+    pitch:
+      "Test a trading strategy across asset classes before it touches real money. Next.js and FastAPI, Auth0 and Paddle.",
+    band: { bg: "#0f2a44", fg: "#ffffff", accent: "#7cc4ff", buttonText: "#0f2a44" },
+    long: true,
   },
 ];
 
-const experiences = [
-  {
-    role: "Technical Team Lead · Revest",
-    summary:
-      "Leading delivery on the loyalty platform — portal revamp, sales targeting, and integrations with external loyalty and installment providers.",
-    date: "02/2026 – Present",
-    bullets: [
-      "Led the revamp of the Next.js portal, shipping 20+ features and migrating the UI from MUI to Untitled UI and Tailwind CSS alongside the design team.",
-      "Built sales targets, letting customers set goals across 15+ dimensions including customers, products, stores, and regions.",
-      "Led implementation of promotions, product variations, customer nationality and short address, and OTP verification for customer actions.",
-      "Integrated the platform with external loyalty programs and installment sales providers.",
-      "Implemented points transfer between different loyalty platforms.",
-    ],
-  },
-  {
-    role: "Full Stack Developer · Revest",
-    summary:
-      "Built a customer loyalty platform serving hundreds of stores with point-based rewards and real-time redemption tracking.",
-    date: "09/2025 – 01/2026",
-    bullets: [
-      "Architected the backend with NestJS and PostgreSQL, supporting thousands of transactions daily, while shipping frontend features in Next.js.",
-      "Designed the system architecture and technical specifications — database schema, API contracts, and service boundaries.",
-      "Drove technical direction through architecture discussions, code reviews, and unblocking engineers on tricky implementations.",
-    ],
-  },
-  {
-    role: "Founding Engineer · 0x99M",
-    summary:
-      "Shipping AI-powered SaaS and developer tooling end-to-end — product, design, backend, billing, and ops.",
-    date: "11/2023 – Present",
-    bullets: [
-      {
-        before: "Shipped ",
-        link: { href: "https://github.com/0x99M/videos-recipes", label: "Videos.Recipes" },
-        after:
-          " — a SaaS that extracts structured recipes from YouTube cooking videos in real time via youtubei.js, with PostgreSQL/Drizzle storage, full-text search, and one-click export to PDF or DOCX.",
-      },
-      "Developed a multi-asset trading backtesting SaaS on Next.js + FastAPI, with Auth0 for auth, Paddle for billing, and AWS for compute and storage.",
-      {
-        before: "Shipped ",
-        link: { href: "https://clipmer.app", label: "Clipmer" },
-        after:
-          " — a tray-based clipboard history manager for Linux (Electron + GNOME Shell extension) with a Next.js marketing site, distributed as .deb and AppImage.",
-      },
-    ],
-  },
-  {
-    role: "Software Development Engineer L4 · Amazon",
-    summary:
-      "Scaled the Exchange Program Control Portal from 1 to 4 marketplaces.",
-    date: "08/2022 – 10/2023",
-    bullets: [
-      "Led enhancements to the Exchange Program Control Portal, expanding its scope from 1 to 4 marketplaces.",
-      "Redesigned marketplace onboarding, achieving a 90% improvement in expansion efficiency.",
-      "Collaborated across teams to scale system architecture and support growing operational needs.",
-    ],
-  },
-  {
-    role: "Software Developer · UniTicker",
-    summary:
-      "Optimized market data infrastructure to unlock rapid product iteration.",
-    date: "08/2021 – 08/2022",
-    bullets: [
-      "Optimized infrastructure, reducing server RAM usage by 71% (from 350+ GB to under 100 GB).",
-      "Improved data streaming latency from 4+ hours to under 5 seconds.",
-      "Refactored core market data processing, enhancing performance and maintainability — making it 70% easier to onboard new developers and implement new features.",
-    ],
-  },
+const socials = [
+  { label: "Follow on X", href: "https://x.com/0x99M", primary: true },
+  { label: "GitHub", href: "https://github.com/0x99M" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/mustafa-alsheikh/" },
 ];
 
-const skillCategories = [
-  {
-    title: "Languages",
-    icon: "💻",
-    tags: ["TypeScript", "Python", "JavaScript", "Java", "C++", "Dart"],
-  },
-  {
-    title: "Frameworks & Libraries",
-    icon: "🚀",
-    tags: [
-      "Next.js",
-      "React",
-      "NestJS",
-      "FastAPI",
-      "Flutter",
-      "Spring",
-      "Tailwind CSS",
-    ],
-  },
-  {
-    title: "Cloud & Infrastructure",
-    icon: "☁️",
-    tags: [
-      "AWS EC2",
-      "AWS S3",
-      "AWS Lambda",
-      "DynamoDB",
-      "AppRunner",
-      "RDS",
-      "REST APIs",
-      "Linux",
-      "Shell Scripting",
-    ],
-  },
-  {
-    title: "Tools & Platforms",
-    icon: "🛠️",
-    tags: ["Git", "GitHub", "Docker", "Postman", "Paddle", "Figma", "Jira"],
-  },
-];
+function Band({ product, index }: { product: Product; index: number }) {
+  // Image on the right for odd bands, left for even, so the page zig-zags.
+  const imageFirst = index % 2 === 1;
+  const style = {
+    "--band-bg": product.band.bg,
+    "--band-fg": product.band.fg,
+    "--band-accent": product.band.accent,
+    "--band-button-text": product.band.buttonText,
+  } as React.CSSProperties;
+
+  return (
+    <section id={product.id} className="pf-band" style={style} aria-labelledby={`${product.id}-name`}>
+      <div className="pf-wrap pf-band-inner">
+        <p className="pf-band-meta">
+          <span className="pf-band-num">{String(index + 1).padStart(2, "0")}</span>
+          <span>{product.meta}</span>
+        </p>
+        <h2 id={`${product.id}-name`} className={product.long ? "pf-name pf-name-long" : "pf-name"}>
+          {product.name}
+        </h2>
+        <div className={product.image ? "pf-band-body" : "pf-band-body pf-band-body-text"}>
+          <div className={imageFirst ? "pf-band-copy pf-second" : "pf-band-copy"}>
+            <p className="pf-pitch">{product.pitch}</p>
+            {product.link && (
+              <a className="pf-button" href={product.link.href} target="_blank" rel="noopener noreferrer">
+                {product.link.label} <span aria-hidden="true">↗</span>
+              </a>
+            )}
+          </div>
+          {product.image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="pf-shot"
+              src={product.image.src}
+              alt={product.image.alt}
+              width={product.image.width}
+              height={product.image.height}
+              loading={index === 0 ? "eager" : "lazy"}
+              decoding="async"
+            />
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function PortfolioPage() {
   return (
-    <PortfolioClient
-      projects={projects}
-      experiences={experiences}
-      skillCategories={skillCategories}
-    />
+    <main className="pf-page">
+      <section className="pf-hero" id="top">
+        <div className="pf-wrap pf-hero-inner">
+          <header className="pf-top">
+            <a href="#top" className="pf-mark">
+              0x99M
+            </a>
+            <nav aria-label="Products" className="pf-nav">
+              {products.map((product) => (
+                <a key={product.id} href={`#${product.id}`}>
+                  {product.name}
+                </a>
+              ))}
+            </nav>
+          </header>
+          <h1 className="pf-hero-title">
+            Mustafa builds
+            <br />
+            things that ship.
+          </h1>
+          <div className="pf-hero-foot">
+            <p className="pf-lead">
+              Solo developer in Amman. {products.length} products so far, across phone,
+              desktop and web. Each one designed, built and run by me.
+            </p>
+            <a href={`#${products[0].id}`} className="pf-down" aria-label="Jump to the first product">
+              ↓
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {products.map((product, index) => (
+        <Band key={product.id} product={product} index={index} />
+      ))}
+
+      <footer className="pf-footer">
+        <div className="pf-wrap pf-footer-inner">
+          <h2 className="pf-footer-title">
+            Next one&apos;s
+            <br />
+            coming.
+          </h2>
+          <div className="pf-socials">
+            {socials.map((social) => (
+              <a
+                key={social.href}
+                href={social.href}
+                className={social.primary ? "pf-button pf-button-light" : "pf-button pf-button-ghost"}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {social.label} <span aria-hidden="true">↗</span>
+              </a>
+            ))}
+          </div>
+          <p className="pf-copy">© {new Date().getFullYear()} Mustafa Alsheikh · 0x99m.com</p>
+        </div>
+      </footer>
+    </main>
   );
 }

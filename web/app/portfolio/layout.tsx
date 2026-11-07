@@ -1,18 +1,29 @@
-import type { Metadata } from "next";
-import { Comfortaa } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Anton, Archivo } from "next/font/google";
 import "./portfolio.css";
 
-const comfortaa = Comfortaa({
+const anton = Anton({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-comfortaa",
+  weight: "400",
+  variable: "--font-pf-display",
+  display: "swap",
+});
+
+const archivo = Archivo({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-pf-body",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "0x99M Portfolio",
+  title: "0x99M — Mustafa builds things that ship",
   description:
-    "Full-stack engineer with 4+ years of experience building scalable SaaS platforms",
+    "Solo developer in Amman. Shadowkit, Videos.Recipes, Clipmer and more: designed, built and run by one person.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
 };
 
 export default function PortfolioLayout({
@@ -20,5 +31,9 @@ export default function PortfolioLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className={`portfolio-root ${comfortaa.variable}`}>{children}</div>;
+  return (
+    <div className={`pf-root ${anton.variable} ${archivo.variable}`}>
+      {children}
+    </div>
+  );
 }
