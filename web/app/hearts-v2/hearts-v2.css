@@ -1,0 +1,29 @@
+/* /hearts-v2: hold the heart, it fills, bursts and writes M ❤ S in particles you can stir */
+/* One fixed dark stage, the same evening-wedding world as /hearts: wine night, ruby heart, gold script.
+     Hold the heart to fill it; it bursts into particles that write M ❤ S, which you can then stir. */
+  .hv2{
+    color-scheme:dark;
+    --night:#12080f; --wine-deep:#240e1c; --wine-hi:#43182f;
+    --gold:#e3bf78; --gold-hi:#f7e3b0; --muted:#c9adb5; --cream:#f5ead8;
+    --f-script:var(--font-hv2-script), "Great Vibes", "Snell Roundhand", "Apple Chancery", cursive;
+    --f-ar:var(--font-hv2-ar), "Amiri", "Noto Naskh Arabic", "Traditional Arabic", serif;
+  }
+  .hv2 .stage{position:fixed;inset:0;overflow:hidden;color:var(--cream);font-family:var(--f-ar);
+    background:radial-gradient(130% 90% at 50% 44%, var(--wine-hi), var(--wine-deep) 48%, var(--night) 100%);
+    -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  .hv2 #fx{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:pointer;outline:none}
+  .hv2 #fx:focus-visible{box-shadow:inset 0 0 0 2px var(--gold-hi)}
+  .hv2 .halo{position:absolute;width:560px;height:560px;margin:-280px 0 0 -280px;border-radius:50%;pointer-events:none;opacity:0;
+    background:radial-gradient(closest-side, rgba(255,92,120,.5), rgba(216,52,79,.16) 45%, transparent);will-change:opacity, transform}
+  .hv2 .hint{position:absolute;left:0;right:0;bottom:calc(76px + env(safe-area-inset-bottom, 0px));margin:0;
+    padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+    text-align:center;color:var(--muted);font-size:20px;pointer-events:none;transition:opacity .45s ease}
+  .hv2 .hint.off{opacity:0}
+  .hv2 .hint span{display:inline-block;animation:breathe 2.6s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
+  .hv2 .replay{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(22px + env(safe-area-inset-bottom, 0px));
+    font:inherit;font-size:16px;color:var(--gold-hi);background:rgba(18,8,15,.5);border:1px solid rgba(227,191,120,.22);
+    border-radius:999px;padding:5px 20px;cursor:pointer}
+  .hv2 .replay:hover{border-color:rgba(227,191,120,.55)}
+  .hv2 .replay:focus-visible{outline:2px solid var(--gold-hi);outline-offset:3px}
+  @media (prefers-reduced-motion: reduce){ .hv2 .hint span{animation:none} }
