@@ -1,0 +1,29 @@
+/* /hearts-v3: M's thread searches a galaxy of hearts, finds S, and the path turns out to be one giant heart.
+   Everything is scoped under .hv3 so the other routes keep their own look. */
+.hv3{color-scheme:dark;--night:#0b0509;--wine-deep:#1d0a17;--wine-hi:#2c0f22;--gold:#e3bf78;--gold-hi:#f7e3b0;--muted:#c9adb5;--cream:#f5ead8;
+    --f-script:var(--font-hv3-script),"Great Vibes","Snell Roundhand","Apple Chancery",cursive;
+    --f-num:var(--font-hv3-num),"Amiri","Noto Naskh Arabic","Traditional Arabic",serif}
+  .hv3 p{margin:0}
+  .hv3 .stage{position:fixed;inset:0;overflow:hidden;color:var(--cream);font-family:var(--f-num);
+    background:radial-gradient(120% 80% at 50% 45%,var(--wine-hi),var(--wine-deep) 45%,var(--night) 100%);
+    touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  .hv3 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .hv3 #ov{cursor:pointer;outline:none}
+  .hv3 .fade{opacity:0;transform:translateY(10px);transition:opacity .9s ease,transform .9s ease;pointer-events:none}
+  .hv3 .fade.on{opacity:1;transform:none}
+  .hv3 .top{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 7vh);text-align:center;pointer-events:none;
+    padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  .hv3 .count{font-size:clamp(36px,10vw,68px);line-height:1.05;color:var(--gold-hi);direction:ltr;
+    font-variant-numeric:tabular-nums lining-nums;text-shadow:0 0 24px rgba(227,191,120,.35),0 2px 16px rgba(0,0,0,.6)}
+  .hv3 .endpos{position:absolute;left:0;right:0;top:50%;display:flex;justify-content:center;pointer-events:none}
+  .hv3 .end{display:flex;flex-direction:column;align-items:center;text-align:center;padding:14px 30px 18px;transform:translateY(-50%);
+    background:radial-gradient(closest-side,rgba(11,5,9,.78),rgba(11,5,9,.5) 60%,rgba(11,5,9,0))}
+  .hv3 .end.fade{transform:translateY(calc(-50% + 10px))}
+  .hv3 .end.fade.on{transform:translateY(-50%)}
+  .hv3 .title{font-family:var(--f-script);font-size:clamp(40px,min(12vw,9vh),84px);line-height:1.15;color:var(--gold-hi);direction:ltr;
+    display:flex;align-items:center;gap:.2em;text-shadow:0 0 26px rgba(227,191,120,.4)}
+  .hv3 .title svg{width:.42em;height:.42em;fill:var(--gold)}
+  .hv3 .replay{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 5vh);translate:-50% 0;pointer-events:auto;
+    width:48px;height:48px;padding:0;display:grid;place-items:center;color:var(--gold-hi);background:rgba(11,5,9,.55);border:1px solid rgba(227,191,120,.25);border-radius:999px;cursor:pointer}
+  .hv3 .replay svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .hv3 .replay:focus-visible{outline:2px solid var(--gold-hi);outline-offset:3px}
