@@ -59,6 +59,21 @@ const products: Product[] = [
     },
   },
   {
+    id: "dotpane",
+    name: "Dotpane",
+    meta: "Web app · Coming soon",
+    pitch:
+      "Write small HTML, CSS and JS panes and drop them on a dotted grid. Each one can call your APIs while your keys stay on the server. 400+ ready-made panes, and an MCP server so AI agents can build with it.",
+    band: { bg: "#c9f24d", fg: "#1a1c1f", accent: "#1a1c1f", buttonText: "#c9f24d" },
+    link: { href: "https://dotpane.com", label: "dotpane.com" },
+    image: {
+      src: "/portfolio/dotpane.png",
+      alt: "A Dotpane canvas: weather, to-do, music and uptime panes on a dotted grid",
+      width: 1698,
+      height: 851,
+    },
+  },
+  {
     id: "backtesting",
     name: "Backtesting",
     meta: "Fintech SaaS",
