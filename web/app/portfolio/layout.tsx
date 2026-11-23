@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  themeColor: "#0d1014", // the hero opens on Shadowkit's band
 };
 
 export default function PortfolioLayout({

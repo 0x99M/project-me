@@ -1,7 +1,12 @@
+import { Hero, type HeroProduct } from "./hero";
+import { hex } from "./hex";
+
 type Product = {
   id: string;
   name: string;
   meta: string;
+  /** One line for the hero reel. */
+  tagline: string;
   pitch: string;
   /** Band colours; the text colour has to pass 4.5:1 on the band. */
   band: { bg: string; fg: string; accent: string; buttonText: string };
@@ -16,6 +21,7 @@ const products: Product[] = [
     id: "shadowkit",
     name: "Shadowkit",
     meta: "Android · iOS · Linux",
+    tagline: "Money, habits, notes and a journal in one quiet app.",
     pitch:
       "Your life, one quiet app. Money, habits, notes and a journal on your phone; network, focus and battery on your computer. Offline. No account.",
     band: { bg: "#0d1014", fg: "#edeff2", accent: "#46e0e6", buttonText: "#0d1014" },
@@ -31,6 +37,7 @@ const products: Product[] = [
     id: "recipes",
     name: "Videos.Recipes",
     meta: "AI SaaS · Open source",
+    tagline: "Paste a cooking video, get a clean recipe.",
     pitch:
       "Paste a YouTube cooking video, get a clean recipe: ingredients, steps, searchable, exportable to PDF or DOCX.",
     band: { bg: "#c2412b", fg: "#ffffff", accent: "#ffffff", buttonText: "#8e2a18" },
@@ -47,6 +54,7 @@ const products: Product[] = [
     id: "clipmer",
     name: "Clipmer",
     meta: "Linux desktop",
+    tagline: "Everything you copied, one shortcut away.",
     pitch:
       "Everything you copied, one shortcut away. Search, pin, annotate and auto-paste on GNOME and Wayland.",
     band: { bg: "#4535c9", fg: "#ffffff", accent: "#ffffff", buttonText: "#2e2194" },
@@ -62,6 +70,7 @@ const products: Product[] = [
     id: "dotpane",
     name: "Dotpane",
     meta: "Web app · Coming soon",
+    tagline: "Small panes on a dotted grid, wired to your APIs.",
     pitch:
       "Write small HTML, CSS and JS panes and drop them on a dotted grid. Each one can call your APIs while your keys stay on the server. 400+ ready-made panes, and an MCP server so AI agents can build with it.",
     band: { bg: "#c9f24d", fg: "#1a1c1f", accent: "#1a1c1f", buttonText: "#c9f24d" },
@@ -77,6 +86,7 @@ const products: Product[] = [
     id: "backtesting",
     name: "Backtesting",
     meta: "Fintech SaaS",
+    tagline: "Test a trading strategy before it touches real money.",
     pitch:
       "Test a trading strategy across asset classes before it touches real money. Next.js and FastAPI, Auth0 and Paddle.",
     band: { bg: "#0f2a44", fg: "#ffffff", accent: "#7cc4ff", buttonText: "#0f2a44" },
@@ -104,7 +114,7 @@ function Band({ product, index }: { product: Product; index: number }) {
     <section id={product.id} className="pf-band" style={style} aria-labelledby={`${product.id}-name`}>
       <div className="pf-wrap pf-band-inner">
         <p className="pf-band-meta">
-          <span className="pf-band-num">{String(index + 1).padStart(2, "0")}</span>
+          <span className="pf-band-num">{hex(index + 1)}</span>
           <span>{product.meta}</span>
         </p>
         <h2 id={`${product.id}-name`} className={product.long ? "pf-name pf-name-long" : "pf-name"}>
@@ -137,39 +147,31 @@ function Band({ product, index }: { product: Product; index: number }) {
   );
 }
 
+const heroProducts: HeroProduct[] = products.map((p) => ({
+  id: p.id,
+  name: p.name,
+  meta: p.meta,
+  tagline: p.tagline,
+  bg: p.band.bg,
+  fg: p.band.fg,
+  accent: p.band.accent,
+  long: p.long,
+}));
+
 export default function PortfolioPage() {
+  const nav = (
+    <nav aria-label="Products" className="pf-nav">
+      {products.map((product) => (
+        <a key={product.id} href={`#${product.id}`}>
+          {product.name}
+        </a>
+      ))}
+    </nav>
+  );
+
   return (
     <main className="pf-page">
-      <section className="pf-hero" id="top">
-        <div className="pf-wrap pf-hero-inner">
-          <header className="pf-top">
-            <a href="#top" className="pf-mark">
-              0x99M
-            </a>
-            <nav aria-label="Products" className="pf-nav">
-              {products.map((product) => (
-                <a key={product.id} href={`#${product.id}`}>
-                  {product.name}
-                </a>
-              ))}
-            </nav>
-          </header>
-          <h1 className="pf-hero-title">
-            Mustafa builds
-            <br />
-            things that ship.
-          </h1>
-          <div className="pf-hero-foot">
-            <p className="pf-lead">
-              Solo developer. {products.length} products so far, across phone,
-              desktop and web. Each one designed, built and run by me.
-            </p>
-            <a href={`#${products[0].id}`} className="pf-down" aria-label="Jump to the first product">
-              ↓
-            </a>
-          </div>
-        </div>
-      </section>
+      <Hero products={heroProducts} nav={nav} />
 
       {products.map((product, index) => (
         <Band key={product.id} product={product} index={index} />
