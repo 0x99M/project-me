@@ -1,0 +1,26 @@
+/* /hearts-v5: one full-screen pool of dark water. The ink is the picture; a caption floats above it, the names and a hint sit below. Scoped under .hv5. */
+.hv5{color-scheme:dark;--night:#07040a;--wine-deep:#150812;--gold:#e3bf78;--gold-hi:#f7e3b0;--rose:#ff7d9c;--muted:#bba3b4;--cream:#f5ead8;
+    --f-script:var(--font-hv5-script),"Great Vibes","Snell Roundhand","Apple Chancery",cursive;
+    --f-serif:var(--font-hv5-serif),"Cormorant Garamond","Cormorant",Garamond,"Times New Roman",serif;
+    --f-ar:var(--font-hv5-ar),"Amiri","Noto Naskh Arabic","Traditional Arabic",serif}
+  .hv5 p{margin:0}
+  .hv5 .stage{position:fixed;inset:0;overflow:hidden;background:var(--night);color:var(--cream);font-family:var(--f-ar);
+    touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  .hv5 canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+  .hv5 .fade{opacity:0;transform:translateY(8px);transition:opacity .9s ease,transform .9s ease;pointer-events:none}
+  .hv5 .fade.on{opacity:1;transform:none}
+  .hv5 .edge{position:absolute;left:0;right:0;display:flex;flex-direction:column;align-items:center;text-align:center;pointer-events:none;
+    padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+  .hv5 .top{top:calc(env(safe-area-inset-top,0px) + 7vh)}
+  .hv5 .cap{direction:rtl;padding:6px 22px 10px;max-width:20ch;font-size:clamp(25px,6.6vw,40px);line-height:1.5;text-wrap:balance;
+    background:radial-gradient(closest-side,rgba(7,4,10,.55),rgba(7,4,10,.25) 65%,rgba(7,4,10,0));
+    text-shadow:0 2px 18px rgba(0,0,0,.8),0 0 2px rgba(0,0,0,.6)}
+  .hv5 .end{bottom:calc(env(safe-area-inset-bottom,0px) + 9vh);gap:2px}
+  .hv5 .names{font-family:var(--f-script);direction:ltr;font-size:clamp(46px,13vw,76px);line-height:1.1;color:var(--gold-hi);text-shadow:0 0 28px rgba(227,191,120,.45),0 2px 14px rgba(0,0,0,.7)}
+  .hv5 .names span{font-family:var(--f-serif);font-size:.5em;color:var(--rose);vertical-align:.18em;padding:0 .12em}
+  .hv5 .sub{direction:rtl;font-size:clamp(17px,4.6vw,22px);text-shadow:0 2px 14px rgba(0,0,0,.85)}
+  .hv5 .hint{bottom:calc(env(safe-area-inset-bottom,0px) + 6vh)}
+  .hv5 .hint span{direction:rtl;padding:6px 18px 9px;border-radius:999px;background:rgba(7,4,10,.62);font-size:17px;color:var(--cream);text-shadow:0 1px 8px rgba(0,0,0,.8)}
+  .hv5 .hint i{font-style:normal;display:inline-block;animation:hv5-nudge 2.4s ease-in-out infinite}
+  @keyframes hv5-nudge{0%,100%{transform:translateX(0)}50%{transform:translateX(-10px)}}
+  @media (prefers-reduced-motion: reduce){.hv5 .fade{transition:opacity .3s linear;transform:none}.hv5 .hint i{animation:none}}
